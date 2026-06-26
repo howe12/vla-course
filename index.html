@@ -559,7 +559,85 @@ function placeholder(area,ch,detail){
     '<p style="text-align:center;color:var(--muted);padding:60px 0">📝 本章内容编写中——将结合 <strong>every-embodied-course 第16章</strong> + <strong>实训指导书 07 系列</strong> + <strong>md_docs_backup ManipDojo</strong> 三块内容。</p>';
 }
 
-function r_ch3(area,ch){ placeholder(area,ch,'<ul style="margin:8px 0 0 1.2em;line-height:1.9"><li>下载并加载 OpenVLA 7B 模型</li><li>在 LIBERO 上运行零样本推理</li><li>理解动作头（Action Head）的设计</li><li>对比 OpenVLA vs ACT 在相同任务上的表现</li></ul>'); }
+function r_ch3(area,ch){
+  area.innerHTML=
+    '<div class="transition-note"><strong>🔄 从 §2 的仿真环境出发</strong> MuJoCo + LIBERO 已经就绪，随机动作的 Demo 也跑通了。现在把随机数替换为<strong>真正的 VLA 模型</strong>——加载 OpenVLA 7B，让大模型看懂场景、理解指令、输出可以完成任务的机械臂动作。</div>'+
+    '<div class="ch-header"><div class="ch-num">第 '+ch.num+' 章</div><h2>'+ch.title+'</h2><p class="ch-desc">'+ch.desc+'</p></div>'+
+    '<div class="callout tip"><div class="lb">🎯 学习目标</div><ul style="margin:8px 0 0 1.2em;line-height:1.9"><li>理解 OpenVLA 的架构：SigLIP ViT + LLaMA 7B + Action Head 的分工</li><li>从 HuggingFace 下载并加载 OpenVLA 7B 模型（FP16 / INT4）</li><li>掌握推理管线：图像预处理 → 多模态前向 → 离散 Token → 连续动作</li><li>理解动作解码的 256 桶方案如何在代码中实现</li><li>在 LIBERO-Spatial 上运行完整的 VLA 零样本推理闭环</li></ul></div>'+
+    '<div class="callout"><div class="lb">📍 本章定位</div><p style="margin:0">本章是<strong>VLA 推理的起点</strong>。你先学会"用"模型——加载现成的 OpenVLA 权重，理解它如何从像素走到关节角。第 4 章（SmolVLA）和第 5 章（Pi0）会教你"训"模型。第 6 章（L40）则是"规模化训练"。</p></div>'+
+
+    '<section><h3>3.1 OpenVLA 是什么？</h3>'+
+    '<p><strong>OpenVLA</strong>（2024.3）是 Stanford HAI 和 UIUC 联合发布的<strong>首个开源 7B VLA 模型</strong>。它的发布标志着 VLA 从"闭源封闭"走向"开源开放"——权重、代码、推理框架全部公开，Apache 2.0 协议可商用。</p>'+
+    '<table><thead><tr><th>特性</th><th>OpenVLA</th><th>RT-2（对比）</th></tr></thead><tbody>'+
+    '<tr><td><strong>参数量</strong></td><td>7B</td><td>55B</td></tr>'+
+    '<tr><td><strong>视觉编码器</strong></td><td>SigLIP ViT-SO (384M)</td><td>ViT-22B</td></tr>'+
+    '<tr><td><strong>语言基座</strong></td><td>LLaMA 2 7B</td><td>T5-XL + PaLI-X</td></tr>'+
+    '<tr><td><strong>训练数据</strong></td><td>Open X-Embodiment (2M+ 轨迹)</td><td>内部数据 (13 台机器人, 17 个月)</td></tr>'+
+    '<tr><td><strong>推理速度</strong></td><td>~40ms (INT4, 25Hz)</td><td>~530ms (FP16, ~2Hz)</td></tr>'+
+    '<tr><td><strong>开源</strong></td><td>✅ Apache 2.0</td><td>❌ 闭源</td></tr>'+
+    '</tbody></table>'+
+    '<div class="card"><div class="card-label">🔑 核心创新</div><p>OpenVLA 证明了<strong>开源 LLM（LLaMA 2）可以直接做 VLA 的基座</strong>，不需要 Google 的闭源模型。7B 参数经过 INT4 量化后仅需 ~5GB 显存，可以在消费级 GPU（RTX 3090/4060）上推理。这也是本课程选它的原因——<strong>你能在自己的硬件上跑起来</strong>。</p></div>'+
+    '</section>'+
+
+    '<section><h3>3.2 OpenVLA 架构详解</h3>'+
+    '<p>OpenVLA 遵循"视觉编码器 → 语言基座 → 动作头"三阶段范式，与 §1 讲的理论架构完全对应：</p>'+
+    '<pre><code>┌──────────────────────────────────────────────────────┐\n│  📷 RGB 图像 (224×224×3)                              │\n│        ↓                                              │\n│  SigLIP ViT-SO (384M)                                │\n│  将图像切为 14×14 = 196 个 patch，输出 196×1024 特征   │\n│        ↓                                              │\n│  ┌─────────────────────────────────────────┐         │\n│  │  Projector: 1024 → 4096 (LLaMA 维度)    │         │\n│  └─────────────────────────────────────────┘         │\n│        ↓                                              │\n│  ┌─────────────────────────────────────────┐         │\n│  │  LLaMA 2 7B (32 层, 4096 hidden)        │         │\n│  │  · 196 个视觉 token + N 个语言 token    │         │\n│  │  · 自回归生成 8 个动作 token             │         │\n│  └─────────────────────────────────────────┘         │\n│        ↓                                              │\n│  ┌─────────────────────────────────────────┐         │\n│  │  Action Head: 每个 token → 256 类分类   │         │\n│  │  7 个动作维 × 256 桶 → 7 个离散索引     │         │\n│  └─────────────────────────────────────────┘         │\n│        ↓                                              │\n│  🦾 连续动作: (Δx, Δy, Δz, Δroll, Δpitch, Δyaw, g)  │\n└──────────────────────────────────────────────────────┘</code></pre>'+
+    '<h4>三个组件的分工</h4>'+
+    '<table><thead><tr><th>组件</th><th>模型</th><th>参数量</th><th>作用</th></tr></thead><tbody>'+
+    '<tr><td><strong>视觉编码器</strong></td><td>SigLIP ViT-SO</td><td>~384M</td><td>RGB → 196 个 1024 维视觉 token</td></tr>'+
+    '<tr><td><strong>投影层</strong></td><td>Linear(1024→4096)</td><td>~4M</td><td>视觉维度 → LLaMA 维度对齐</td></tr>'+
+    '<tr><td><strong>语言基座</strong></td><td>LLaMA 2 7B</td><td>~6.7B</td><td>融合视觉+语言 → 自回归生成动作 token</td></tr>'+
+    '<tr><td><strong>动作头</strong></td><td>7 个独立 Linear(4096→256)</td><td>~7M</td><td>每个 token → 256 桶概率 → 连续动作值</td></tr>'+
+    '</tbody></table>'+
+    '</section>'+
+
+    '<section><h3>3.3 模型下载与加载</h3>'+
+    '<p>OpenVLA 模型托管在 HuggingFace，约 14GB（FP16）。国内下载可能需要镜像：</p>'+
+    '<pre><code># 方案 A：直接下载（推荐，国外网络或代理）\npip install transformers>=4.40 torch>=2.0 accelerate\n\n# 方案 B：HF 镜像（国内网络）\nexport HF_ENDPOINT=https://hf-mirror.com\npip install transformers torch accelerate\n\n# 方案 C：L40 云端（第 6 章）\n# L40 位于海外机房，直连 HuggingFace，无需镜像</code></pre>'+
+    '<h4>加载模型（FP16）</h4>'+
+    '<pre><code>import torch\nfrom transformers import AutoModelForVision2Seq, AutoProcessor\n\nmodel_id = "openvla/openvla-7b"\n\n# FP16 加载（需 ~14GB 显存）\nmodel = AutoModelForVision2Seq.from_pretrained(\n    model_id,\n    torch_dtype=torch.float16,\n    device_map="auto",          # 自动分配 GPU/CPU\n    trust_remote_code=True,     # OpenVLA 有自定义代码\n)\nprocessor = AutoProcessor.from_pretrained(model_id)\n\nprint("模型加载完成！")</code></pre>'+
+    '<h4>INT4 量化加载（消费级 GPU）</h4>'+
+    '<pre><code># INT4 量化（需 ~8GB 显存，RTX 4060 / 3090 可用）\nfrom transformers import BitsAndBytesConfig\n\nquant_config = BitsAndBytesConfig(\n    load_in_4bit=True,\n    bnb_4bit_compute_dtype=torch.float16,\n    bnb_4bit_use_double_quant=True,\n)\n\nmodel = AutoModelForVision2Seq.from_pretrained(\n    model_id,\n    quantization_config=quant_config,\n    device_map="auto",\n    trust_remote_code=True,\n)</code></pre>'+
+    '<div class="callout warn"><div class="lb">⚠️ 硬件要求</div><ul style="margin:8px 0 0 1.2em;line-height:1.9"><li><strong>FP16</strong>：~14GB 显存 — RTX 3090/4090, A100, L40</li><li><strong>INT8</strong>：~8GB 显存 — RTX 3070/4060, V100</li><li><strong>INT4</strong>：~5GB 显存 — RTX 2060/3060, T4</li><li><strong>CPU</strong>：理论上可行（~64GB RAM），推理速度 ~2-5 秒/步，不推荐</li></ul></div>'+
+    '</section>'+
+
+    '<section><h3>3.4 推理管线：从像素到关节角</h3>'+
+    '<p>一次完整的 OpenVLA 推理包含四个步骤。理解每一步，你就能在任何机器人平台上适配它：</p>'+
+    '<h4>步骤 1：图像预处理</h4>'+
+    '<pre><code>from PIL import Image\nimport numpy as np\n\n# LIBERO 返回的 RGB 数组 (224, 224, 3) uint8\nobs = env.reset()  # numpy uint8\nimage = Image.fromarray(obs).convert("RGB")\n\n# 可选：反归一化到 [0,1]（OpenVLA processor 会自动处理）</code></pre>'+
+    '<h4>步骤 2：构建 Prompt</h4>'+
+    '<pre><code># OpenVLA 使用特殊格式编码任务指令\n# 格式: "Task: {instruction}. Bot: In: Im"\ninstruction = task.language_instruction\nprompt = f"Task: {instruction}. Bot: In: Im"\n\n# processor 自动将 "Im" 替换为图像 token\ninputs = processor(\n    images=image,\n    text=prompt,\n    return_tensors="pt",\n).to(model.device)</code></pre>'+
+    '<h4>步骤 3：模型前向推理</h4>'+
+    '<pre><code>with torch.no_grad():\n    # 自回归生成 8 个 token（7 动作 + 1 结束符）\n    outputs = model.generate(\n        **inputs,\n        max_new_tokens=8,\n        do_sample=False,          # 贪心解码 = 确定性输出\n        num_beams=1,\n    )\n\n# 提取新生成的 token\naction_tokens = outputs[:, inputs["input_ids"].shape[1]:]\n# shape: (1, 8)</code></pre>'+
+    '<h4>步骤 4：Token → 连续动作</h4>'+
+    '<pre><code># OpenVLA 的 action head 是 7 个 Linear(4096, 256) 分类头\n# generate 的输出 token ID 就是每个维度的桶索引 (0~255)\n\ndef decode_action(action_tokens, num_bins=256):\n    """\n    将离散 token 恢复为连续动作值\n    \n    action_tokens: (1, 8) — 最后一个是结束符，忽略\n    返回: (7,) numpy array, 范围 [-1, 1]\n    """\n    token_ids = action_tokens[0, :7].cpu().numpy()  # 取前 7 个\n    \n    actions = []\n    for tid in token_ids:\n        # 256 桶均匀分布在 [-1, 1]\n        bin_centers = np.linspace(-1.0, 1.0, num_bins)\n        action_value = bin_centers[tid % num_bins]\n        actions.append(action_value)\n    \n    return np.array(actions)</code></pre>'+
+    '<div class="card"><div class="card-label">🔑 理解 token → 动作的映射</div><p>假设第 0 维（Δx）的 token ID = 150，256 桶均匀分布在 [-1, 1]：桶 150 的中心 = -1.0 + (150/255) × 2.0 = <strong>+0.176</strong>。这个值就是机械臂末端在 x 方向的增量。ID=0 → -1.0（向左最快），ID=255 → +1.0（向右最快），ID=128 → ~0.0（不动）。</p></div>'+
+    '</section>'+
+
+    '<section><h3>3.5 完整推理闭环：OpenVLA + LIBERO</h3>'+
+    '<p>把上面的推理管线嵌入 LIBERO 控制循环，替换 §2 的随机动作：</p>'+
+    '<div class="practice-box"><div class="pb-title">🧪 OpenVLA 零样本推理实验</div><ol class="steps"><li><strong>确认环境</strong>：<code>cd /develop/vla-course/codes && uv run python -c "from transformers import AutoModelForVision2Seq; print(\'OK\')"</code></li><li><strong>下载模型</strong>（首次约 14GB）：运行下方脚本会自动从 HuggingFace 拉取</li><li><strong>运行推理</strong>：<code>uv run python codes/step3_openvla/run_openvla_libero.py</code></li><li><strong>观察</strong>：终端打印每步动作，注意 gripper 值在接近物体时从 1.0（开）变为 -1.0（关）</li></ol></div>'+
+    '<details><summary>展开查看 run_openvla_libero.py 完整代码</summary><div class="details-body"><pre><code>#!/usr/bin/env python3\n"""OpenVLA 7B + LIBERO-Spatial 零样本推理闭环"""\nimport torch\nimport numpy as np\nfrom PIL import Image\nfrom transformers import AutoModelForVision2Seq, AutoProcessor\nfrom libero.libero import benchmark\n\n# ===== 1. 加载模型 =====\nDEVICE = "cuda" if torch.cuda.is_available() else "cpu"\nMODEL_ID = "openvla/openvla-7b"\n\nprint(f"加载 OpenVLA 到 {DEVICE}...")\nmodel = AutoModelForVision2Seq.from_pretrained(\n    MODEL_ID,\n    torch_dtype=torch.float16 if DEVICE == "cuda" else torch.float32,\n    device_map="auto",\n    trust_remote_code=True,\n)\nprocessor = AutoProcessor.from_pretrained(MODEL_ID)\n\n# ===== 2. 加载 LIBERO 任务 =====\nbenchmark_dict = benchmark.get_benchmark_dict()\ntask_suite = benchmark_dict["libero_spatial"]()\ntask = task_suite.get_task(0)\n\nenv_args = {\n    "task": task,\n    "bddl_file": task.bddl_file,\n    "camera_heights": 224,\n    "camera_widths": 224,\n}\nenv = task_suite.get_env(task_id=0, env_args=env_args)\n\nprint(f"\n任务: {task.name}")\nprint(f"指令: {task.language_instruction}")\n\n# ===== 3. 推理循环 =====\nNUM_BINS = 256\nBIN_CENTERS = np.linspace(-1.0, 1.0, NUM_BINS)\n\nobs = env.reset()\nmax_steps = 30\n\nfor step in range(max_steps):\n    # ── 图像预处理 ──\n    image = Image.fromarray(obs).convert("RGB")\n\n    # ── 构建 prompt ──\n    prompt = f"Task: {task.language_instruction}. Bot: In: Im"\n\n    # ── 模型推理 ──\n    inputs = processor(\n        images=image,\n        text=prompt,\n        return_tensors="pt",\n    ).to(DEVICE)\n\n    with torch.no_grad():\n        outputs = model.generate(\n            **inputs,\n            max_new_tokens=8,\n            do_sample=False,\n        )\n\n    # ── Token → 连续动作 ──\n    new_tokens = outputs[0, inputs["input_ids"].shape[1]:]\n    action = np.array([\n        BIN_CENTERS[new_tokens[i].item() % NUM_BINS]\n        for i in range(7)\n    ])\n\n    # ── 执行动作 ──\n    obs, reward, done, info = env.step(action)\n\n    if step % 5 == 0 or done:\n        d = action\n        print(f"Step {step:2d} | Δxyz=({d[0]:+.3f},{d[1]:+.3f},{d[2]:+.3f}) "\n              f"| Δrpy=({d[3]:+.3f},{d[4]:+.3f},{d[5]:+.3f}) "\n              f"| gripper={d[6]:+.3f} | reward={reward:.2f}")\n\n    if done:\n        print(f"\n✅ 任务完成于 step {step}")\n        break\n\nprint("\n推理结束。")\nprint(f"零样本成功率 = {1.0 if done else 0.0} (1 个任务)")\nprint("提示: 运行全部 10 个 LIBERO-Spatial 任务来统计真正的成功率")</code></pre></div></details>'+
+    '<div class="callout"><div class="lb">💡 预期结果</div><p style="margin:0">OpenVLA 在 LIBERO-Spatial 10 个任务上的零样本成功率约 <strong>60-80%</strong>。简单任务（把碗放到盘子上）几乎 100%，复杂任务（把字母方块放进烤面包机）可能失败。失败不代表模型"不懂"——可能是指令歧义、视觉遮挡、或动作精度不够。</p></div>'+
+    '</section>'+
+
+    '<section><h3>3.6 理解输出：动作是如何"算"出来的？</h3>'+
+    '<p>你已经看了 token→action 的代码，但背后有一个关键问题：<strong>LLaMA 输出的 token ID，和 256 桶的桶索引是什么关系？</strong></p>'+
+    '<p>OpenVLA 的做法非常巧妙：</p>'+
+    '<ol style="padding-left:1.5em;line-height:2.2"><li>LLaMA 的词表有 32000 个 token（正常的文本 token）</li><li>OpenVLA 额外加了 <strong>7×256 = 1792 个"动作 token"</strong> 到词表中</li><li>这些动作 token 的 ID 范围是 [32000, 33792)</li><li>token ID = 32000 + dim_idx × 256 + bucket_idx</li><li>所以 token ID 除以 256 的商是<strong>维度索引</strong>，余数是<strong>桶索引</strong></li></ol>'+
+    '<table><thead><tr><th>Token ID</th><th>含义</th><th>维度</th><th>桶索引</th><th>连续值</th></tr></thead><tbody>'+
+    '<tr><td>32000</td><td>Δx 第 0 桶</td><td>0 (Δx)</td><td>0</td><td>-1.0 (向左最快)</td></tr>'+
+    '<tr><td>32128</td><td>Δx 第 128 桶</td><td>0 (Δx)</td><td>128</td><td>~0.0 (不动)</td></tr>'+
+    '<tr><td>32255</td><td>Δx 第 255 桶</td><td>0 (Δx)</td><td>255</td><td>+1.0 (向右最快)</td></tr>'+
+    '<tr><td>33536</td><td>gripper 第 128 桶</td><td>6 (gripper)</td><td>128</td><td>~0.0 (半开)</td></tr>'+
+    '</tbody></table>'+
+    '<p>这就是 §1.5 讲的"动作离散化与 LLM Token 统一"在 OpenVLA 中的具体实现。LLaMA 的损失函数、注意力机制、自回归生成——全部原封不动地复用了语言模型的框架。</p>'+
+    '</section>'+
+
+    '<section><h3>📝 本章小结</h3><div class="card"><div class="card-label">带走这几条</div><ol style="padding-left:1.5em;line-height:2.1"><li><strong>OpenVLA = SigLIP ViT + LLaMA 2 7B + 7×256 动作头</strong></li><li><strong>推理管线</strong>：图像 → ViT 编码 → 196 个视觉 token + 语言 token → LLaMA 自回归 → 8 个动作 token → 桶解码 → 7 维连续动作</li><li><strong>Token→Action</strong>：Token ID 的商=维度索引，余数=256 桶索引，桶中心 = -1 + 索引/255×2</li><li><strong>INT4 量化</strong>：7B 模型 → ~5GB 显存，RTX 2060 也能跑，推理 ~40-80ms/步</li><li><strong>零样本能力</strong>：OpenVLA 在 LIBERO 上无需微调即可获得 60-80% 成功率</li></ol></div>'+
+
+    '<h4>🤔 思考题</h4><ol style="padding-left:1.5em;line-height:2.2"><li>OpenVLA 的 token ID 编码方案中，为什么能用"商=维度"、"余数=桶"？这要求 256 和 7 满足什么数学条件？</li><li>如果想让 OpenVLA 控制一个 14-DOF 的双臂机器人（7+7），token 编码方案需要怎么改？</li><li>INT4 量化会损失什么？在 §3.5 的 LIBERO 实验中，如果你跑 FP16 和 INT4 推理各 10 次，预期成功率会有差异吗？为什么？</li></ol>';
+}
 function r_ch4(area,ch){ placeholder(area,ch,'<ul style="margin:8px 0 0 1.2em;line-height:1.9"><li>理解 SmolVLA 的轻量化设计</li><li>在 L40 上用 LeRobot 训练 SmolVLA</li><li>对比 SmolVLA vs OpenVLA 的性能和成本</li><li>模型融合微调：在已有模型上叠加新数据</li></ul>'); }
 function r_ch5(area,ch){ placeholder(area,ch,'<ul style="margin:8px 0 0 1.2em;line-height:1.9"><li>理解扩散模型如何生成连续动作</li><li>Pi0 的 Flow Matching 原理</li><li>在 L40 上运行 Pi0 推理</li><li>对比扩散 VLA vs 自回归 VLA 的差异</li></ul>'); }
 function r_ch6(area,ch){ placeholder(area,ch,'<ul style="margin:8px 0 0 1.2em;line-height:1.9"><li>L40 云端环境配置与文件传输</li><li>SmolVLA 完整训练流程（100K steps, ~6h）</li><li>Pi0 训练参数调优（batch_size, freeze_vision）</li><li>训练监控：WandB + loss 曲线解读</li></ul>'); }
