@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VLA 从零到部署 — 具身智能教科书</title>
+<style>
+/* ============================================================
+   教科书设计系统 — 基于 mujoco-quadruped-lab，零外部依赖
+   ============================================================ */
+:root {
+  --bg-page:    #fdfbf7;
+  --bg-content: #ffffff;
+  --text:       #2c3e50;
+  --head:       #1a1a2e;
+  --muted:      #7f8c8d;
+  --accent:     #8b5cf6;
+  --link:       #7c3aed;
+  --sidebar-bg:#1a1a2e;
+  --sidebar-txt:#c8d6e5;
+  --sidebar-hov:#2d3436;
+  --sidebar-act:#a78bfa;
+  --code-bg:    #2d3436;
+  --code-txt:   #dfe6e9;
+  --border:     #e0d8cc;
+  --card-bg:    #f8f4ed;
+  --card-bd:    #e8d5b7;
+  --tip-bg:     #eaf7ee;
+  --tip-bd:     #27ae60;
+  --warn-bg:    #fef9e7;
+  --warn-bd:    #f39c12;
+  --info-bg:    #eaf2f8;
+  --info-bd:    #8b5cf6;
+  --shadow-sm:  0 1px 3px rgba(0,0,0,.06);
+  --shadow-md:  0 4px 12px rgba(0,0,0,.08);
+  --radius:     8px;
+  --sidebar-w:  270px;
+  --content-w:  840px;
+  --font-serif: Georgia, 'Noto Serif SC', 'STSong', serif;
+  --font-sans:  'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-mono:  'Consolas', 'Courier New', 'Source Code Pro', monospace;
+  --tr:         0.25s ease;
+}
+[data-theme="dark"] {
+  --bg-page:    #1a1a2e;
+  --bg-content: #22223b;
+  --text:       #d5dbe3;
+  --head:       #e8ecf1;
+  --muted:      #8e99a4;
+  --accent:     #a78bfa;
+  --link:       #c4b5fd;
+  --code-bg:    #111;
+  --code-txt:   #e0e0e0;
+  --border:     #3a3a5c;
+  --card-bg:    #2a2a42;
+  --card-bd:    #4a4a6a;
+  --tip-bg:     #1a3a2a;
+  --tip-bd:     #27ae60;
+  --warn-bg:    #3a2a1a;
+  --warn-bd:    #f39c12;
+  --info-bg:    #1a2a3a;
+  --info-bd:    #8b5cf6;
+  --shadow-sm:  0 1px 3px rgba(0,0,0,.3);
+  --shadow-md:  0 4px 12px rgba(0,0,0,.4);
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;font-size:16px}
+body{font-family:var(--font-sans);background:var(--bg-page);color:var(--text);line-height:1.85;display:flex;min-height:100vh;transition:background var(--tr),color var(--tr)}
+noscript{padding:40px;text-align:center;color:var(--accent);font-size:1.1rem}
+
+/* ── 侧边栏 ── */
+.sidebar{position:fixed;top:0;left:0;width:var(--sidebar-w);height:100vh;background:var(--sidebar-bg);color:var(--sidebar-txt);overflow-y:auto;z-index:100;transition:transform var(--tr);display:flex;flex-direction:column}
+.sidebar-brand{padding:28px 24px 20px;border-bottom:1px solid rgba(255,255,255,.08)}
+.sidebar-brand h1{font-family:var(--font-serif);font-size:1.15rem;font-weight:700;color:#fff;line-height:1.4}
+.sidebar-brand .sub{font-size:.75rem;opacity:.7;margin-top:4px}
+.sidebar-nav{flex:1;padding:12px 0}
+.sidebar-nav a{display:flex;align-items:center;gap:10px;padding:10px 24px;color:var(--sidebar-txt);text-decoration:none;font-size:.875rem;transition:all var(--tr);border-left:3px solid transparent}
+.sidebar-nav a:hover{background:var(--sidebar-hov);color:#fff}
+.sidebar-nav a.active{background:rgba(139,92,246,.15);color:var(--sidebar-act);border-left-color:var(--sidebar-act);font-weight:600}
+.sidebar-nav .num{font-family:var(--font-mono);font-size:.7rem;font-weight:700;opacity:.5;min-width:28px}
+.sidebar-nav a.active .num{opacity:1;color:var(--sidebar-act)}
+.sidebar-footer{padding:16px 24px;border-top:1px solid rgba(255,255,255,.08);font-size:.7rem;opacity:.5}
+.theme-btn{background:none;border:1px solid rgba(255,255,255,.2);color:var(--sidebar-txt);cursor:pointer;padding:6px 12px;border-radius:4px;font-size:.75rem;margin:8px 24px;transition:all var(--tr)}
+.theme-btn:hover{border-color:rgba(255,255,255,.5);color:#fff}
+
+.menu-btn{display:none;position:fixed;top:16px;left:16px;z-index:200;background:var(--sidebar-bg);color:#fff;border:none;width:40px;height:40px;border-radius:8px;font-size:1.2rem;cursor:pointer;box-shadow:var(--shadow-md)}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:90}
+.overlay.show{display:block}
+
+/* ── 主内容 ── */
+.main{margin-left:var(--sidebar-w);flex:1;min-width:0;display:flex;justify-content:center}
+.content{width:100%;max-width:var(--content-w);padding:48px 40px 80px}
+
+.ch-header{margin-bottom:36px;padding-bottom:20px;border-bottom:2px solid var(--border)}
+.ch-num{font-size:.85rem;font-weight:700;color:var(--accent);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px}
+.ch-header h2{font-family:var(--font-serif);font-size:1.9rem;font-weight:700;color:var(--head);line-height:1.3}
+.ch-desc{font-size:1rem;color:var(--muted);margin-top:8px}
+
+section{margin-bottom:38px}
+section h3{font-family:var(--font-serif);font-size:1.35rem;font-weight:700;color:var(--head);margin-bottom:14px;padding-bottom:5px;border-bottom:1px solid var(--border)}
+section h4{font-size:1.05rem;font-weight:600;color:var(--head);margin:22px 0 10px}
+p{margin-bottom:14px;text-align:justify}
+strong{color:var(--head)}
+a{color:var(--link);text-decoration:none}
+a:hover{text-decoration:underline}
+
+.card{background:var(--card-bg);border:1px solid var(--card-bd);border-radius:var(--radius);padding:18px 22px;margin:20px 0;box-shadow:var(--shadow-sm)}
+.card .card-label{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--accent);margin-bottom:6px}
+.card h5{font-size:1rem;font-weight:700;color:var(--head);margin-bottom:6px}
+
+.callout{border-left:4px solid var(--info-bd);background:var(--info-bg);border-radius:0 var(--radius) var(--radius) 0;padding:14px 18px;margin:18px 0}
+.callout.tip{border-color:var(--tip-bd);background:var(--tip-bg)}
+.callout.warn{border-color:var(--warn-bd);background:var(--warn-bg)}
+.callout .lb{font-weight:700;font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+.callout.tip .lb{color:var(--tip-bd)}
+.callout.warn .lb{color:var(--warn-bd)}
+.callout .lb{color:var(--info-bd)}
+
+pre{background:var(--code-bg);color:var(--code-txt);border-radius:var(--radius);padding:18px 22px;overflow-x:auto;margin:14px 0;font-family:var(--font-mono);font-size:.84rem;line-height:1.65;box-shadow:var(--shadow-sm);tab-size:2}
+code{font-family:var(--font-mono);font-size:.86em}
+:not(pre)>code{background:var(--card-bg);color:var(--accent);padding:2px 6px;border-radius:3px}
+pre code{background:none!important;color:inherit;padding:0;font-size:inherit}
+.kw{color:#e06c75}.fn{color:#61afef}.str{color:#98c379}.cm{color:#5c6370;font-style:italic}.num{color:#d19a66}
+
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:.9rem;box-shadow:var(--shadow-sm)}
+thead{background:var(--sidebar-bg);color:#fff}
+th{padding:11px 14px;text-align:left;font-weight:600;font-size:.8rem;letter-spacing:.04em}
+td{padding:9px 14px;border-bottom:1px solid var(--border)}
+tbody tr:hover{background:var(--card-bg)}
+
+.ch-nav{display:flex;justify-content:space-between;margin-top:44px;padding-top:20px;border-top:1px solid var(--border)}
+.ch-nav a{display:flex;align-items:center;gap:8px;padding:10px 16px;border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:.88rem;transition:all var(--tr);text-decoration:none}
+.ch-nav a:hover{border-color:var(--accent);color:var(--accent);box-shadow:var(--shadow-sm)}
+
+.toc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;margin:24px 0}
+.toc-card{background:var(--bg-content);border:1px solid var(--border);border-radius:var(--radius);padding:18px;cursor:pointer;transition:all var(--tr);box-shadow:var(--shadow-sm);text-decoration:none;color:inherit;display:block}
+.toc-card:hover{border-color:var(--accent);box-shadow:var(--shadow-md);transform:translateY(-1px)}
+.toc-card .toc-num{font-family:var(--font-mono);font-size:.75rem;font-weight:700;color:var(--accent)}
+.toc-card h4{font-size:1rem;margin:4px 0 6px;color:var(--head)}
+.toc-card p{font-size:.82rem;color:var(--muted);margin:0}
+
+.transition-note{background:linear-gradient(135deg,var(--info-bg),var(--tip-bg));border:1px solid var(--info-bd);border-radius:var(--radius);padding:14px 18px;margin:20px 0;font-size:.9rem}
+.transition-note strong{color:var(--accent)}
+
+.practice-box{background:var(--tip-bg);border:2px solid var(--tip-bd);border-radius:var(--radius);padding:18px 22px;margin:20px 0}
+.practice-box .pb-title{font-weight:700;font-size:.95rem;color:var(--tip-bd);margin-bottom:10px}
+
+details{margin:16px 0;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+details summary{cursor:pointer;padding:14px 18px;background:var(--card-bg);font-weight:600;font-size:.95rem;color:var(--head);user-select:none;list-style:none;display:flex;align-items:center;gap:8px}
+details summary::-webkit-details-marker{display:none}
+details summary::before{content:"▸";display:inline-block;transition:transform .2s;font-size:.8rem;color:var(--accent)}
+details[open] summary::before{transform:rotate(90deg)}
+details .details-body{padding:16px 18px;border-top:1px solid var(--border);background:var(--bg-content)}
+
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%)}
+  .sidebar.open{transform:translateX(0)}
+  .menu-btn{display:block}
+  .main{margin-left:0}
+  .content{padding:20px 16px 60px}
+  .ch-header h2{font-size:1.45rem}
+  .toc-grid{grid-template-columns:1fr}
+}
+@media print{
+  .sidebar,.menu-btn,.ch-nav,.overlay,.theme-btn{display:none}
+  .main{margin-left:0}
+  .content{max-width:100%;padding:0}
+  body{font-size:12pt}
+}
+#contentArea:empty::after{content:'载入中\u2026';display:block;padding:60px;text-align:center;color:var(--muted);font-size:1.1rem}
+</style>
+</head>
+<body>
+
+<noscript><p>⚠️ 此页面需要 JavaScript 才能正常显示。请启用 JavaScript 后刷新。</p></noscript>
+
+<button class="menu-btn" id="menuBtn" aria-label="菜单">☰</button>
+<div class="overlay" id="overlay"></div>
+
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-brand">
+    <h1>VLA<br>从零到部署</h1>
+    <p class="sub">具身智能教科书 · NXROBO</p>
+  </div>
+  <nav class="sidebar-nav" id="sidebarNav"></nav>
+  <button class="theme-btn" id="themeToggle">🌙 深色模式</button>
+  <div class="sidebar-footer">
+    Vision-Language-Action<br>
+    MuJoCo · LeRobot · L40 · Gemini
+  </div>
+</aside>
+
+<main class="main">
+  <article class="content" id="contentArea"></article>
+</main>
+
+<script>
+/* ============================================================
+   教科书引擎
+   ============================================================ */
+(function(){
+'use strict';
+
+const CHAPTERS = [
+  {id:'ch0',num:'0',title:'课程总览',desc:'VLA 是什么、为什么重要、这门课怎么学。'},
+  {id:'ch1',num:'1',title:'VLA 基础与架构',desc:'视觉-语言-动作模型的核心概念、技术演进与系统架构。'},
+  {id:'ch2',num:'2',title:'仿真环境搭建',desc:'MuJoCo + LIBERO 仿真平台，为 VLA 实验准备沙盒。'},
+  {id:'ch3',num:'3',title:'OpenVLA 实战',desc:'7B 开源 VLA 模型的推理、适配与理解。'},
+  {id:'ch4',num:'4',title:'SmolVLA 轻量 VLA',desc:'4.5 亿参数，单卡训练，CPU 推理——最亲民的 VLA。'},
+  {id:'ch5',num:'5',title:'Pi0 扩散 VLA',desc:'基于扩散模型的 SOTA VLA，理解动作生成的另一种范式。'},
+  {id:'ch6',num:'6',title:'L40 云端训练',desc:'在云端 GPU 上训练 SmolVLA 和 Pi0，掌握分布式训练流程。'},
+  {id:'ch7',num:'7',title:'Gemini 真机部署',desc:'将云端训练的 VLA 模型部署到双子座机器人上验证。'},
+  {id:'ch8',num:'8',title:'VLA 前沿与竞赛',desc:'ACoT-VLA、ManipDojo、ICRA2026——站在最前沿。'},
+];
+
+let runOnce = false;
+
+function navHTML(activeId){
+  return CHAPTERS.map(c =>
+    '<a href="#'+c.id+'"'+(c.id===activeId?' class="active"':'')+' data-ch="'+c.id+'"><span class="num">§'+c.num+'</span> '+c.title+'</a>'
+  ).join('');
+}
+
+function chNav(currentId){
+  const idx = CHAPTERS.findIndex(c => c.id===currentId);
+  const prev = idx>0 ? CHAPTERS[idx-1] : null;
+  const next = idx<CHAPTERS.length-1 ? CHAPTERS[idx+1] : null;
+  return '<div class="ch-nav">'+
+    (prev?'<a href="#'+prev.id+'">← §'+prev.num+' '+prev.title+'</a>':'<span></span>')+
+    (next?'<a href="#'+next.id+'">§'+next.num+' '+next.title+' →</a>':'<span></span>')+
+    '</div>';
+}
+
+function render(chapterId){
+  const area = document.getElementById('contentArea');
+  const ch = CHAPTERS.find(c => c.id===chapterId);
+  if(!ch) return renderHome();
+
+  area.innerHTML = '';
+  const renderers = {
+    ch1: r_ch1, ch2: r_ch2, ch3: r_ch3, ch4: r_ch4,
+    ch5: r_ch5, ch6: r_ch6, ch7: r_ch7, ch8: r_ch8
+  };
+  const fn = renderers[chapterId];
+  if(fn){ fn(area,ch); }
+  else { area.innerHTML = '<p style="padding:60px;text-align:center;color:var(--muted)">章节内容编写中…</p>'; }
+
+  area.insertAdjacentHTML('beforeend', chNav(chapterId));
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function renderHome(){
+  const area = document.getElementById('contentArea');
+  document.getElementById('sidebarNav').innerHTML = navHTML('ch0');
+
+  const cards = CHAPTERS.slice(1).map(c =>
+    '<a href="#'+c.id+'" class="toc-card"><div class="toc-num">第 '+c.num+' 章</div><h4>'+c.title+'</h4><p>'+c.desc+'</p></a>'
+  ).join('');
+
+  area.innerHTML =
+    '<div class="ch-header"><div class="ch-num">具身智能 · VLA 专题</div><h2>VLA 从零到部署</h2><p class="ch-desc">Vision-Language-Action · MuJoCo + LeRobot + L40 + Gemini</p></div>'+
+    '<div class="callout"><div class="lb">📖 关于本教程</div><p>本教程带你从零开始掌握 <strong>VLA（Vision-Language-Action）</strong>模型——从理论基础、仿真实验、云端训练，到在<strong>双子座 Gemini 机器人</strong>上的真机部署。前置课程：<strong>VLN 视觉语言导航</strong> + <strong>模仿学习（ACT/LeRobot）</strong>。</p><p style="margin-top:8px"><strong>硬件要求</strong>：L40 云端 GPU（训练）+ Gemini 双臂机器人（真机验证）+ 普通电脑（仿真）</p></div>'+
+    '<section><h3>🗺️ 学习路线图</h3><p>从 VLA 是什么出发 → 仿真里跑通 OpenVLA → SmolVLA 轻量训练 → Pi0 扩散模型 → 云端分布式训练 → 真机部署验证 → 竞赛实战。一条<strong>从理论到真机</strong>的完整链路。</p>'+
+    '<div class="toc-grid">'+cards+'</div></section>'+
+    '<section><h3>🛠️ 环境要求</h3><table><thead><tr><th>组件</th><th>要求</th></tr></thead><tbody>'+
+    '<tr><td>操作系统</td><td>Ubuntu 20.04/22.04</td></tr>'+
+    '<tr><td>Python</td><td>≥ 3.10</td></tr>'+
+    '<tr><td>仿真</td><td>MuJoCo ≥ 3.x + LIBERO</td></tr>'+
+    '<tr><td>训练</td><td>L40 GPU (48GB) / RTX 4090 (24GB)</td></tr>'+
+    '<tr><td>真机</td><td>双子座 Gemini (4 臂 + 移动底盘)</td></tr>'+
+    '<tr><td>框架</td><td>LeRobot, PyTorch, HuggingFace</td></tr>'+
+    '</tbody></table></section>'+
+    '<section><h3>📋 学习节奏</h3><table><thead><tr><th>阶段</th><th>章节</th><th>主要产出</th></tr></thead><tbody>'+
+    '<tr><td>第 1 周</td><td>1 + 2</td><td>理解 VLA 架构，跑通 MuJoCo/LIBERO 仿真</td></tr>'+
+    '<tr><td>第 2 周</td><td>3</td><td>OpenVLA 推理实战，理解 7B VLA 模型</td></tr>'+
+    '<tr><td>第 3 周</td><td>4</td><td>SmolVLA 训练，单卡完成轻量 VLA 微调</td></tr>'+
+    '<tr><td>第 4 周</td><td>5 + 6</td><td>Pi0 扩散 VLA + L40 云端分布式训练</td></tr>'+
+    '<tr><td>第 5 周</td><td>7 + 8</td><td>Gemini 真机部署 + 竞赛实战</td></tr>'+
+    '</tbody></table></section>'+
+    '<section style="text-align:center;color:var(--muted);font-size:.85rem;padding:20px 0"><p>🏗️ NXROBO 具身智能课程系列</p><p>📝 License: <a href="http://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a></p></section>';
+}
+
+/* ── 路由 ── */
+function route(){
+  const hash = window.location.hash.slice(1)||'ch0';
+  const cid = CHAPTERS.some(c => c.id===hash) ? hash : 'ch0';
+  document.getElementById('sidebarNav').innerHTML = navHTML(cid);
+  if(cid==='ch0'){ renderHome(); } else { render(cid); }
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('overlay').classList.remove('show');
+  runOnce = true;
+}
+
+window.addEventListener('hashchange', ()=>{ if(runOnce) route(); });
+if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',route); }
+else{ route(); }
+
+document.getElementById('menuBtn').addEventListener('click',()=>{
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('overlay').classList.add('show');
+});
+document.getElementById('overlay').addEventListener('click',()=>{
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('overlay').classList.remove('show');
+});
+
+const tb = document.getElementById('themeToggle');
+tb.addEventListener('click',()=>{
+  const d = document.documentElement.getAttribute('data-theme')==='dark';
+  document.documentElement.setAttribute('data-theme',d?'light':'dark');
+  tb.textContent=d?'🌙 深色模式':'☀️ 浅色模式';
+  try{localStorage.setItem('vla-theme',d?'light':'dark')}catch(e){}
+});
+try{if(localStorage.getItem('vla-theme')==='dark'){
+  document.documentElement.setAttribute('data-theme','dark');
+  tb.textContent='☀️ 浅色模式';
+}}catch(e){}
+
+/* ============================================================
+   第 1 章：VLA 基础与架构
+   ============================================================ */
+function r_ch1(area,ch){
+  area.innerHTML=
+    '<div class="ch-header"><div class="ch-num">第 '+ch.num+' 章</div><h2>'+ch.title+'</h2><p class="ch-desc">'+ch.desc+'</p></div>'+
+    '<div class="callout tip"><div class="lb">🎯 学习目标</div><ul style="margin:8px 0 0 1.2em;line-height:1.9"><li>理解 VLA 是什么、与 VLN 和模仿学习的区别</li><li>掌握 VLA 的核心架构：视觉编码器 + LLM + 动作头</li><li>了解从 RT-2 到 Pi0 的技术演进</li><li>清楚 VLA 当前的能力边界与挑战</li></ul></div>'+
+    '<div class="callout"><div class="lb">📍 本章定位</div><p style="margin:0">本章是 VLA 课程的<strong>理论基础</strong>。你已经完成了 VLN（视觉语言导航）和模仿学习（ACT/LeRobot），VLA 是这两条线的交汇——用一个统一的大模型同时理解语言、看懂图像、输出动作。</p></div>'+
+
+    '<section><h3>1.1 从 VLN 到 VLA</h3>'+
+    '<p>你已经学了两种让机器人"听懂人话"的方式：</p>'+
+    '<table><thead><tr><th>范式</th><th>核心思路</th><th>代表模型</th><th>局限</th></tr></thead><tbody>'+
+    '<tr><td><strong>VLN</strong></td><td>专用模型：CNN+RNN，只做导航</td><td>Seq2SeqAgent, JanusVLN</td><td>任务单一，无法泛化到操作</td></tr>'+
+    '<tr><td><strong>模仿学习</strong></td><td>从人类演示中学习：ACT、Diffusion Policy</td><td>ACT, DP</td><td>每个任务需要新数据，不利用语言先验</td></tr>'+
+    '<tr><td><strong>VLA</strong></td><td>一个统一大模型：同时理解视觉、语言、动作</td><td>RT-2, OpenVLA, Pi0</td><td>训练成本高，实时性挑战</td></tr>'+
+    '</tbody></table>'+
+    '<div class="card"><div class="card-label">🔑 核心突破</div><h5>VLA = VLN 的语言理解 + 模仿学习的动作能力 + LLM 的世界知识</h5><p>VLA 的核心洞察是：互联网上预训练的大语言模型已经"知道"什么是厨房、杯子、抓取——把它接到机器人上，导航和操作都只是推理能力的延伸。</p></div></section>'+
+
+    '<section><h3>1.2 VLA 的核心架构</h3>'+
+    '<pre><code>┌──────────┐    ┌──────────┐    ┌──────────┐\n│  📷 视觉  │    │  📝 语言  │    │  🦾 动作  │\n│ 编码器    │    │ 指令      │    │ 头       │\n│ (ViT)    │    │          │    │ (MLP)    │\n└────┬─────┘    └────┬─────┘    └────┬─────┘\n     │               │               │\n     └───────┬───────┘               │\n             │                       │\n     ┌───────▼───────────────────────▼──┐\n     │        LLM (7B~55B)              │\n     │  融合视觉 token + 语言 token      │\n     │  → 自回归生成动作 token           │\n     └──────────────────────────────────┘</code></pre>'+
+    '<table><thead><tr><th>组件</th><th>作用</th><th>典型实现</th></tr></thead><tbody>'+
+    '<tr><td><strong>视觉编码器</strong></td><td>RGB 图像 → 视觉 token 序列</td><td>SigLIP, DINOv2, ViT</td></tr>'+
+    '<tr><td><strong>LLM 主干</strong></td><td>融合视觉+语言，推理下一步动作</td><td>LLaMA, Qwen2.5, Gemma</td></tr>'+
+    '<tr><td><strong>动作头</strong></td><td>语言空间 → 动作空间映射</td><td>MLP, 扩散头, Flow Matching</td></tr>'+
+    '</tbody></table></section>'+
+
+    '<section><h3>1.3 技术演进</h3>'+
+    '<table><thead><tr><th>代</th><th>模型</th><th>参数</th><th>核心创新</th><th>年份</th></tr></thead><tbody>'+
+    '<tr><td>1</td><td><strong>RT-1</strong></td><td>35M</td><td>Transformer + 动作离散化</td><td>2022</td></tr>'+
+    '<tr><td>2</td><td><strong>RT-2</strong></td><td>55B</td><td>PaLI-X + PaLM-E，互联网知识→机器人</td><td>2023</td></tr>'+
+    '<tr><td>3</td><td><strong>OpenVLA</strong></td><td>7B</td><td>首个开源 7B VLA，单卡可微调</td><td>2024</td></tr>'+
+    '<tr><td>4</td><td><strong>Pi0</strong></td><td>3B</td><td>扩散模型生成动作，Flow Matching</td><td>2025</td></tr>'+
+    '<tr><td>5</td><td><strong>SmolVLA</strong></td><td>450M</td><td>极致轻量，CPU 可推理，单卡训练</td><td>2025</td></tr>'+
+    '</tbody></table>'+
+    '<div class="card"><div class="card-label">📈 趋势</div><p>从大而全（RT-2 55B）→ 开源可用（OpenVLA 7B）→ 极致轻量（SmolVLA 450M）。同时，动作生成从<strong>离散分类</strong>（RT-1/RT-2）→ <strong>连续回归+扩散</strong>（Pi0），精度和泛化能力持续提升。</p></div></section>'+
+
+    '<section><h3>1.4 本课程选型理由</h3>'+
+    '<p>本课程围绕三款 VLA 模型展开，理由如下：</p>'+
+    '<table><thead><tr><th>模型</th><th>为什么选它</th><th>在哪练</th></tr></thead><tbody>'+
+    '<tr><td><strong>OpenVLA</strong></td><td>7B 参数，开源，文档完善，学术界基准</td><td>第 3 章 · 仿真推理</td></tr>'+
+    '<tr><td><strong>SmolVLA</strong></td><td>450M 参数，L40 单卡训练，成本最低</td><td>第 4 章 · 云端训练</td></tr>'+
+    '<tr><td><strong>Pi0</strong></td><td>扩散 VLA 代表，SOTA 性能，理解新范式</td><td>第 5 章 · L40 训练</td></tr>'+
+    '</tbody></table></section>'+
+
+    '<section><h3>1.5 VLA 的能力边界</h3>'+
+    '<div class="callout warn"><div class="lb">⚠️ 当前 VLA 还做不到的</div><ul style="margin:8px 0 0 1.2em;line-height:1.9"><li><strong>长时序规划</strong>：难以处理超过 20 步的复杂任务链</li><li><strong>精确力控</strong>：插拔 USB、拧螺丝等需要毫牛级力觉</li><li><strong>新物体泛化</strong>：没见过的物体形状仍会失败</li><li><strong>实时性</strong>：7B+ 模型推理 > 1 秒，不适合高速控制</li></ul></div>'+
+
+    '<h4>🤔 思考题</h4><ol style="padding-left:1.5em;line-height:2.2"><li>VLA 和 VLN 的本质区别是什么？为什么 VLA 的野心更大？</li><li>为什么互联网预训练能帮机器人？LLM 中的"世界知识"是什么？</li><li>离散动作 vs 连续动作——各有什么优缺点？</li></ol>';
+}
+
+/* ============================================================
+   第 2 章：仿真环境搭建
+   ============================================================ */
+function r_ch2(area,ch){
+  area.innerHTML=
+    '<div class="transition-note"><strong>🔄 从 §1 的 VLA 理论出发</strong> 你已经理解了 VLA 的架构和演进。现在搭建实验环境——让 VLA 模型在仿真里跑起来。</div>'+
+    '<div class="ch-header"><div class="ch-num">第 '+ch.num+' 章</div><h2>'+ch.title+'</h2><p class="ch-desc">'+ch.desc+'</p></div>'+
+    '<div class="callout tip"><div class="lb">🎯 学习目标</div><ul style="margin:8px 0 0 1.2em;line-height:1.9"><li>安装 MuJoCo 和 LIBERO 仿真环境</li><li>理解机器人操作仿真的基本组件</li><li>跑通第一个仿真 VLA 推理 demo</li></ul></div>'+
+
+    '<section><h3>2.1 为什么选 MuJoCo + LIBERO？</h3>'+
+    '<table><thead><tr><th>仿真器</th><th>优势</th><th>适合</th></tr></thead><tbody>'+
+    '<tr><td><strong>MuJoCo</strong></td><td>接触模型精密、速度快、原生 Python</td><td>物理仿真基础</td></tr>'+
+    '<tr><td><strong>LIBERO</strong></td><td>130 个预置操作任务、标准 VLA 评测</td><td>VLA 基准测试</td></tr>'+
+    '<tr><td>Isaac Sim</td><td>高保真渲染、NVIDIA 生态</td><td>视觉策略训练</td></tr>'+
+    '</tbody></table>'+
+    '<p>MuJoCo 提供物理引擎，LIBERO 在 MuJoCo 之上提供了标准的 VLA 任务套件。两者搭配是当前学术界最主流的 VLA 仿真方案。</p></section>'+
+
+    '<section><h3>2.2 环境安装</h3>'+
+    '<pre><code># 1. 安装 MuJoCo\npip install mujoco\n\n# 2. 验证\npython -c "import mujoco; print(mujoco.__version__)"\n# 输出: 3.x.x\n\n# 3. 安装 LIBERO\npip install libero\n\n# 4. 验证 LIBERO 任务\npython -c "import libero; print(libero.__version__)"</code></pre></section>'+
+
+    '<section><h3>2.3 LIBERO 任务一览</h3>'+
+    '<p>LIBERO 提供 130 个标准化操作任务，分为四个套件：</p>'+
+    '<table><thead><tr><th>套件</th><th>任务数</th><th>难度</th><th>示例</th></tr></thead><tbody>'+
+    '<tr><td><strong>LIBERO-Spatial</strong></td><td>10</td><td>⭐</td><td>抓取物体放到指定位置</td></tr>'+
+    '<tr><td><strong>LIBERO-Object</strong></td><td>10</td><td>⭐⭐</td><td>识别并操作特定物体</td></tr>'+
+    '<tr><td><strong>LIBERO-Goal</strong></td><td>10</td><td>⭐⭐</td><td>根据指令完成任务</td></tr>'+
+    '<tr><td><strong>LIBERO-100</strong></td><td>100</td><td>⭐⭐⭐</td><td>多任务混合评测</td></tr>'+
+    '</tbody></table></section>'+
+
+    '<section><h3>2.4 第一个仿真 Demo</h3>'+
+    '<pre><code># codes/step2_sim/hello_libero.py\nimport libero\nfrom libero.libero import benchmark\n\n# 加载 LIBERO-Spatial 基准\nbenchmark_dict = benchmark.get_benchmark_dict()\ntask_suite = benchmark_dict["libero_spatial"]()\n\n# 获取第一个任务\ntask = task_suite.get_task(0)\nprint(f"任务: {task.name}")\nprint(f"指令: {task.language_instruction}")\nprint(f"问题: {task.problem}")</code></pre></section>'+
+
+    '<h4>🤔 思考题</h4><ol style="padding-left:1.5em;line-height:2.2"><li>仿真和真机的"分布差"从哪里来？LIBERO 能模拟哪些真实挑战？</li><li>为什么 VLA 评测需要 100 个不同任务，而不能只测 1 个？</li></ol>';
+}
+
+/* ============================================================
+   第 3-8 章（占位，后续补充）
+   ============================================================ */
+function placeholder(area,ch,detail){
+  area.innerHTML=
+    '<div class="transition-note"><strong>🔄 从上一章出发</strong></div>'+
+    '<div class="ch-header"><div class="ch-num">第 '+ch.num+' 章</div><h2>'+ch.title+'</h2><p class="ch-desc">'+ch.desc+'</p></div>'+
+    '<div class="callout tip"><div class="lb">🎯 学习目标</div>'+detail+'</div>'+
+    '<p style="text-align:center;color:var(--muted);padding:60px 0">📝 本章内容编写中——将结合 <strong>every-embodied-course 第16章</strong> + <strong>实训指导书 07 系列</strong> + <strong>md_docs_backup ManipDojo</strong> 三块内容。</p>';
+}
+
+function r_ch3(area,ch){ placeholder(area,ch,'<ul style="margin:8px 0 0 1.2em;line-height:1.9"><li>下载并加载 OpenVLA 7B 模型</li><li>在 LIBERO 上运行零样本推理</li><li>理解动作头（Action Head）的设计</li><li>对比 OpenVLA vs ACT 在相同任务上的表现</li></ul>'); }
+function r_ch4(area,ch){ placeholder(area,ch,'<ul style="margin:8px 0 0 1.2em;line-height:1.9"><li>理解 SmolVLA 的轻量化设计</li><li>在 L40 上用 LeRobot 训练 SmolVLA</li><li>对比 SmolVLA vs OpenVLA 的性能和成本</li><li>模型融合微调：在已有模型上叠加新数据</li></ul>'); }
+function r_ch5(area,ch){ placeholder(area,ch,'<ul style="margin:8px 0 0 1.2em;line-height:1.9"><li>理解扩散模型如何生成连续动作</li><li>Pi0 的 Flow Matching 原理</li><li>在 L40 上运行 Pi0 推理</li><li>对比扩散 VLA vs 自回归 VLA 的差异</li></ul>'); }
+function r_ch6(area,ch){ placeholder(area,ch,'<ul style="margin:8px 0 0 1.2em;line-height:1.9"><li>L40 云端环境配置与文件传输</li><li>SmolVLA 完整训练流程（100K steps, ~6h）</li><li>Pi0 训练参数调优（batch_size, freeze_vision）</li><li>训练监控：WandB + loss 曲线解读</li></ul>'); }
+function r_ch7(area,ch){ placeholder(area,ch,'<ul style="margin:8px 0 0 1.2em;line-height:1.9"><li>Gemini 双子座硬件平台回顾</li><li>云端模型 → 本地部署的完整流程</li><li>LeRobot 推理命令与参数调优</li><li>推理效果评估与常见问题诊断</li></ul>'); }
+function r_ch8(area,ch){ placeholder(area,ch,'<ul style="margin:8px 0 0 1.2em;line-height:1.9"><li>ACoT-VLA：链式思考动作生成</li><li>ManipDojo 2026 竞赛回顾</li><li>ICRA2026 赛道一实战经验</li><li>VLA 的未来：具身 AGI 还有多远？</li></ul>'); }
+
+})();
+</script>
+</body>
+</html>
