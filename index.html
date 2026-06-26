@@ -1005,7 +1005,88 @@ function r_ch7(area,ch){
     '<h4>🤔 思考题</h4><ol style="padding-left:1.5em;line-height:2.2"><li>Gemini 的 RTX 4060 只有 8GB 显存。如果未来需要同时跑 SmolVLA（左臂）+ SmolVLA（右臂），显存够吗？如果不够，有哪些办法？</li><li>仿真里训到 90% 成功率的模型，到真机上只有 30%。你会先怀疑什么？按什么顺序排查？</li><li>延迟预算里 VLA 推理占 25ms。能不能把 VLA 推理放到 L40 上、通过 WiFi 传结果回 NUC？这个方案有什么优缺点？</li></ol>';
 }
 
-function r_ch8(area,ch){ placeholder(area,ch,'<ul style="margin:8px 0 0 1.2em;line-height:1.9"><li>ACoT-VLA：链式思考动作生成</li><li>ManipDojo 2026 竞赛回顾</li><li>ICRA2026 赛道一实战经验</li><li>VLA 的未来：具身 AGI 还有多远？</li></ul>'); }
+function r_ch8(area,ch){
+  area.innerHTML=
+    '<div class="transition-note"><strong>🔄 从 §7 的真机部署出发</strong> 你已经走完了 VLA 的完整链路：理论→仿真→推理→训练（自回归+扩散）→真机部署。现在站到更高处——看看学术界在做什么、竞赛怎么打、下一步往哪走。本章不是"学完收工"，而是<strong>帮你找到下一个起点</strong>。</div>'+
+    '<div class="ch-header"><div class="ch-num">第 '+ch.num+' 章</div><h2>'+ch.title+'</h2><p class="ch-desc">'+ch.desc+'</p></div>'+
+    '<div class="callout tip"><div class="lb">🎯 学习目标</div><ul style="margin:8px 0 0 1.2em;line-height:1.9"><li>理解 ACoT-VLA：让 VLA"先想再动"——动作前输出推理链</li><li>了解 ManipDojo 2026 / ICRA 竞赛的赛制和基线方案</li><li>把握多模态 VLA 趋势：触觉、力觉、语音正在进入 VLA</li><li>清楚从本课程到前沿研究的升级路径</li></ul></div>'+
+    '<div class="callout"><div class="lb">📍 本章定位</div><p style="margin:0">本章是<strong>课程的终点和你的起点</strong>。前 7 章给了你 VLA 工程师的完整技能树——理解、仿真、推理、训练、部署。本章告诉你这些技能可以往哪用：发论文、打比赛、做产品。VLA 还在快速发展，2025 年的 SOTA 到 2026 年可能就成了 baseline。你学到的不是"最终答案"，而是<strong>持续进化的方法</strong>。</p></div>'+
+
+    '<section><h3>8.1 ACoT-VLA：让 VLA 学会"思考"</h3>'+
+    '<p>前 7 章的所有 VLA 模型（OpenVLA、SmolVLA、Pi0）都有一个共同特点——看到图像后<strong>直接输出动作</strong>，中间没有"思考"步骤。ACoT-VLA（Action Chain-of-Thought VLA）打破了这个范式：让模型在生成动作前，先输出一段推理链。</p>'+
+    '<h4>自回归 VLA vs ACoT-VLA</h4>'+
+    '<pre><code># 自回归 VLA（OpenVLA/SmolVLA）:\n图像 + "把苹果放进盒子" → [Δx, Δy, Δz, ...]\n\n# ACoT-VLA:\n图像 + "把苹果放进盒子" → \n  "1. 苹果在桌子左侧 2. 盒子在桌子右侧 3. 需要先抓取苹果再移动到盒子"\n  → 基于推理链 → [Δx, Δy, Δz, ...]</code></pre>'+
+    '<h4>双推理器架构</h4>'+
+    '<table><thead><tr><th>模块</th><th>全称</th><th>做什么</th></tr></thead><tbody>'+
+    '<tr><td><strong>EAR</strong></td><td>Explicit Action Reasoner</td><td>生成显式推理链（"苹果在左边，盒子在右边"），输出粗粒度轨迹提示</td></tr>'+
+    '<tr><td><strong>IAR</strong></td><td>Implicit Action Reasoner</td><td>提取 VLM 内部隐藏表征，通过跨注意力捕捉隐式推理信号</td></tr>'+
+    '<tr><td><strong>ACoT 融合模块</strong></td><td>—</td><td>融合显式推理链 + 隐式表征 → 动作解码器</td></tr>'+
+    '</tbody></table>'+
+    '<div class="card"><div class="card-label">🔑 为什么思考链能提升成功率？</div><p>长时序任务（"把苹果放进盒子"需要 15-20 步）中，自回归 VLA 容易在第 5-8 步"迷失"——忘了自己为什么要移动。ACoT 的推理链相当于给每一步的动作预测附加了<strong>全局上下文</strong>："我现在在第 3 步，目标是把苹果移动到盒子，苹果在 (0.3, 0.1)，盒子在 (0.5, -0.2)"。有了这个上下文，模型在每一步都知道"我是谁、我在哪、我要去哪"。</p></div>'+
+    '</section>'+
+
+    '<section><h3>8.2 ManipDojo 与 ICRA 竞赛</h3>'+
+    '<p>VLA 领域有两类主要竞赛：ManipDojo（操作）和 ICRA（综合）。参与竞赛是检验课程学习成果的最好方式。</p>'+
+    '<h4>ManipDojo 2026</h4>'+
+    '<table><thead><tr><th>项目</th><th>内容</th></tr></thead><tbody>'+
+    '<tr><td><strong>赛道</strong></td><td>VLA 推理与操作（Reasoning to Action）</td></tr>'+
+    '<tr><td><strong>任务</strong></td><td>给定自然语言指令 + RGB 观测，输出 7 维末端动作</td></tr>'+
+    '<tr><td><strong>评测</strong></td><td>100 个未见过的物体+场景组合，按成功率排名</td></tr>'+
+    '<tr><td><strong>基线</strong></td><td>ACoT-VLA (Qwen2-VL-7B 基座)</td></tr>'+
+    '<tr><td><strong>硬件</strong></td><td>单卡 L40/A100，推理 < 100ms/步</td></tr>'+
+    '</tbody></table>'+
+    '<h4>从课程模型到竞赛提交</h4>'+
+    '<p>你在 §5 训的 SmolVLA 可以直接作为竞赛的 baseline 提交。升级路径：</p>'+
+    '<ol style="padding-left:1.5em;line-height:2.2"><li><strong>SmolVLA baseline</strong>（§5）：直接提交，预计成功率 ~50%</li><li><strong>+ ACoT 推理链</strong>：在 SmolVLA 前加一个轻量推理器（Qwen2-0.5B），预计 +10-15%</li><li><strong>+ Pi0 扩散头</strong>（§6）：把自回归动作头换成 Flow Matching 扩散头，预计 +5-10%</li><li><strong>+ 多相机融合</strong>（§7.3）：4 路相机拼接替代单路，预计 +5-8%</li><li><strong>+ 后训练数据增强</strong>：在 BridgeData V2 基础上加自己的遥操作数据，预计 +5-10%</li></ol>'+
+    '<div class="card"><div class="card-label">🏆 课程知识的竞赛映射</div><p>§5 的 SmolVLA = baseline、§6 的扩散动作 = 精度提升、§7 的多相机 + 安全 = 鲁棒性、§8.1 的 ACoT = 长时序。你学的每一章都在竞赛中有对应抓手——<strong>没有无效章节</strong>。</p></div>'+
+    '</section>'+
+
+    '<section><h3>8.3 多模态 VLA 趋势</h3>'+
+    '<p>当前 VLA 的输入只有视觉+语言。但机器人的感官远不止这两样。以下是正在进入 VLA 的新模态：</p>'+
+    '<table><thead><tr><th>模态</th><th>信息来源</th><th>解决什么问题</th><th>代表工作</th></tr></thead><tbody>'+
+    '<tr><td><strong>触觉</strong></td><td>指尖触觉传感器（GelSight, DIGIT）</td><td>精细力控（插拔 USB、拧瓶盖）——§1.11 的能力边界正在被突破</td><td>UniTouch, Touch-VLA</td></tr>'+
+    '<tr><td><strong>力觉</strong></td><td>关节力矩传感器</td><td>安全交互、柔顺控制——§7.5 的安全机制从"限制"升级为"感知"</td><td>Force-VLA, RT-2-Force</td></tr>'+
+    '<tr><td><strong>语音</strong></td><td>麦克风阵列</td><td>自然对话式人机协作——从"输入指令"升级为"边聊边做"</td><td>Speech-VLA, Audio-VLA</td></tr>'+
+    '<tr><td><strong>深度</strong></td><td>RGB-D 相机 / LiDAR</td><td>3D 空间理解——"在杯子后面 5cm 处"而非"(0.3, 0.1)"</td><td>3D-VLA, SpatialVLA</td></tr>'+
+    '</tbody></table>'+
+    '<div class="callout"><div class="lb">📈 趋势判断</div><p style="margin:0">2025-2026 年 VLA 的主旋律是<strong>多模态融合</strong>。视觉+语言已经相对成熟（§1-§7 覆盖了这条路线），触觉和力觉是下一个突破口。如果你要在 VLA 方向做研究，<strong>"触觉 VLA"或"力觉 VLA"是很好的切入点</strong>——赛道不算拥挤，但需求明确（精细操作）。</p></div>'+
+    '</section>'+
+
+    '<section><h3>8.4 从 VLA 到具身 AGI</h3>'+
+    '<p>最后，回到 §1.11 提出的能力边界。站在 2026 年中回看，哪些已经被突破、哪些仍然是开放问题？</p>'+
+    '<table><thead><tr><th>能力</th><th>2024 状态</th><th>2026 状态</th><th>未来方向</th></tr></thead><tbody>'+
+    '<tr><td><strong>长时序规划</strong></td><td>❌ 20 步以上失效</td><td>⚠️ ACoT 可到 50 步</td><td>分层规划 + 符号推理</td></tr>'+
+    '<tr><td><strong>精确力控</strong></td><td>❌ 毫牛级做不到</td><td>⚠️ 触觉 VLA 起步</td><td>触觉+力觉+视觉联合建模</td></tr>'+
+    '<tr><td><strong>新物体泛化</strong></td><td>⚠️ 域外下降 50%</td><td>⚠️ 3D 基础模型改善</td><td>大规模 3D 预训练</td></tr>'+
+    '<tr><td><strong>实时性</strong></td><td>⚠️ 7B 模型 >1s</td><td>✅ INT4 量化为 25ms</td><td>边缘芯片（Jetson Thor）</td></tr>'+
+    '<tr><td><strong>安全性</strong></td><td>⚠️ 工程防护为主</td><td>⚠️ 形式化验证起步</td><td>可证明安全 VLA</td></tr>'+
+    '</tbody></table>'+
+    '<h4>你的下一步</h4>'+
+    '<p>学完这 8 章，你已经具备了 VLA 工程师的完整技能。以下是几条可选的进阶路线：</p>'+
+    '<ol style="padding-left:1.5em;line-height:2.2"><li><strong>竞赛路线</strong>：用 §5 的 SmolVLA + §8.1 的 ACoT 打 ManipDojo，积累竞赛经验</li><li><strong>研究路线</strong>：选一个多模态方向（触觉/力觉），在课程代码基础上加新传感器，发一篇 workshop paper</li><li><strong>工程路线</strong>：把 §7 的 Gemini 部署流程产品化——做一个"VLA 一键部署"工具</li><li><strong>教学路线</strong>：把本课程翻译成英文、或适配到新的机器人平台（UR5、Franka、Aloha）</li></ol>'+
+    '</section>'+
+
+    '<section><h3>📝 本章小结</h3><div class="card"><div class="card-label">带走这几条</div><ol style="padding-left:1.5em;line-height:2.1"><li><strong>ACoT-VLA = 先想再动</strong>：推理链给每一步动作提供全局上下文，长时序成功率 +15-20%</li><li><strong>竞赛是最好检验</strong>：§5 的 SmolVLA = baseline，§6 扩散 + §8 ACoT = 进阶</li><li><strong>多模态是趋势</strong>：触觉和力觉是下一个突破口，赛道不拥挤</li><li><strong>VLA 还在快速进化</strong>：2024 的瓶颈正在被突破——实时性已解决，长时序和力控是 2026-2027 的主战场</li><li><strong>你的起点</strong>：竞赛/研究/工程/教学——四条路都从这 8 章出发</li></ol></div>'+
+
+    '<section><h3>🎓 课程总回顾</h3>'+
+    '<div class="card"><div class="card-label">你学到了什么</div>'+
+    '<ol style="padding-left:1.5em;line-height:2.2">'+
+    '<li><strong>§1 理论</strong>：VLA 的定义、架构、训练三阶段——你知道了这个领域的地图</li>'+
+    '<li><strong>§2 仿真</strong>：MuJoCo + LIBERO + 课程机械臂——你有了自己的实验沙盒</li>'+
+    '<li><strong>§3 推理</strong>：OpenVLA 7B 零样本推理——你第一次看到大模型控制机器人</li>'+
+    '<li><strong>§4 算力</strong>：L40 云端环境——你有了训练 VLA 的硬件基础设施</li>'+
+    '<li><strong>§5 训练(自回归)</strong>：SmolVLA 从数据到评估的完整闭环——你能独立训练 VLA</li>'+
+    '<li><strong>§6 训练(扩散)</strong>：Pi0 + Flow Matching——你理解了 VLA 的第二范式</li>'+
+    '<li><strong>§7 真机</strong>：Gemini 部署——仿真里的模型驱动了实体机器人</li>'+
+    '<li><strong>§8 前沿</strong>：ACoT + 竞赛 + 多模态——你知道下一步往哪走</li>'+
+    '</ol></div>'+
+
+    '<p style="text-align:center;padding:40px 0;font-size:1.1rem;color:var(--accent)"><strong>🎉 恭喜完成 VLA 从零到部署！</strong></p>'+
+    '<p style="text-align:center;color:var(--muted)">这 8 章是你进入具身智能领域的护照。<br>下一步不是"学什么"，而是<strong>做什么</strong>。</p></section>'+
+
+    '<h4>🤔 思考题</h4><ol style="padding-left:1.5em;line-height:2.2"><li>ACoT-VLA 的推理链在训练时是从哪来的？是人工标注还是自动生成？这影响模型的泛化能力吗？</li><li>如果让你从零设计一个"触觉 VLA"，你会把触觉信号放在架构的哪个位置？和视觉信号怎么融合？</li><li>学完 8 章后，你想走哪条路线（竞赛/研究/工程/教学）？你接下来准备做什么？</li></ol>';
+}
+
 
 })();
 </script>
