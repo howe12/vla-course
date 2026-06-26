@@ -1,0 +1,89 @@
+<mujoco model="widowx_arm">
+  <compiler angle="radian" meshdir="meshes"/>
+
+  <option timestep="0.002" gravity="0 0 -9.81">
+    <flag contact="enable"/>
+  </option>
+
+  <default>
+    <geom rgba="0.3 0.3 0.4 1" contype="1" conaffinity="1" condim="3"/>
+    <joint limited="true" damping="0.5" armature="0.01"/>
+    <position ctrllimited="true" forcerange="-10 10" kp="50" kv="5"/>
+  </default>
+
+  <worldbody>
+    <light pos="0 0 3" dir="0 0 -1" diffuse="0.8 0.8 0.8"/>
+
+    <!-- 桌子 -->
+    <geom name="table" type="box" pos="0.3 0 0" size="0.4 0.3 0.02" rgba="0.6 0.4 0.2 1"/>
+    <geom name="floor" type="plane" pos="0 0 -0.02" size="1 1 0.02" rgba="0.8 0.8 0.8 1"/>
+
+    <!-- 目标物体（红色方块） -->
+    <body name="target" pos="0.35 0.1 0.05">
+      <joint type="free" limited="false"/>
+      <geom name="target_geom" type="box" size="0.02 0.02 0.02" rgba="0.9 0.2 0.2 1" mass="0.05"/>
+    </body>
+
+    <!-- 相机（VLA 的"眼睛"，固定在机械臂上方） -->
+    <camera name="wrist_cam" pos="0.2 -0.3 0.5" xyaxes="1 0 0 0 1 0" fovy="60"/>
+
+    <!-- 机械臂基座 -->
+    <body name="base" pos="0 0 0.05">
+      <geom name="base_geom" type="cylinder" size="0.06 0.03" rgba="0.2 0.2 0.3 1"/>
+
+      <!-- Joint 1: 基座旋转 (绕 Z 轴) -->
+      <body name="link1" pos="0 0 0.03">
+        <joint name="joint1" type="hinge" axis="0 0 1" range="-3.14 3.14"/>
+        <geom name="link1_geom" type="cylinder" size="0.04 0.08" pos="0 0 0.04" rgba="0.3 0.3 0.5 1"/>
+
+        <!-- Joint 2: 肩部俯仰 (绕 Y 轴) -->
+        <body name="link2" pos="0 0 0.08">
+          <joint name="joint2" type="hinge" axis="0 1 0" range="-2.0 1.5"/>
+          <geom name="link2_geom" type="capsule" size="0.03" fromto="0 0 0  0 0 0.15" rgba="0.35 0.35 0.55 1"/>
+
+          <!-- Joint 3: 肘部俯仰 (绕 Y 轴) -->
+          <body name="link3" pos="0 0 0.15">
+            <joint name="joint3" type="hinge" axis="0 1 0" range="-2.5 1.5"/>
+            <geom name="link3_geom" type="capsule" size="0.025" fromto="0 0 0  0 0 0.12" rgba="0.4 0.4 0.6 1"/>
+
+            <!-- Joint 4: 腕部旋转 (绕 Z 轴) -->
+            <body name="link4" pos="0 0 0.12">
+              <joint name="joint4" type="hinge" axis="0 0 1" range="-3.14 3.14"/>
+              <geom name="link4_geom" type="capsule" size="0.02" fromto="0 0 0  0 0 0.06" rgba="0.45 0.45 0.65 1"/>
+
+              <!-- Joint 5: 腕部俯仰 (绕 Y 轴) -->
+              <body name="link5" pos="0 0 0.06">
+                <joint name="joint5" type="hinge" axis="0 1 0" range="-2.0 2.0"/>
+                <geom name="link5_geom" type="capsule" size="0.018" fromto="0 0 0  0 0 0.05" rgba="0.5 0.5 0.7 1"/>
+
+                <!-- Joint 6: 末端旋转 (绕 Z 轴) -->
+                <body name="link6" pos="0 0 0.05">
+                  <joint name="joint6" type="hinge" axis="0 0 1" range="-3.14 3.14"/>
+                  <geom name="link6_geom" type="capsule" size="0.015" fromto="0 0 0  0 0 0.04" rgba="0.55 0.55 0.75 1"/>
+
+                  <!-- 夹爪 -->
+                  <body name="gripper_base" pos="0 0 0.04">
+                    <geom name="gripper_left" type="box" size="0.008 0.004 0.025" pos="0 0.01 0.012" rgba="0.7 0.7 0.7 1"/>
+                    <geom name="gripper_right" type="box" size="0.008 0.004 0.025" pos="0 -0.01 0.012" rgba="0.7 0.7 0.7 1"/>
+
+                    <!-- 末端 site（用于获取世界坐标） -->
+                    <site name="end_effector" pos="0 0 0.03" size="0.005" rgba="1 0 0 0.5"/>
+                  </body>
+                </body>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+
+  <actuator>
+    <position name="act1" joint="joint1" kp="80" kv="8" ctrlrange="-3.14 3.14"/>
+    <position name="act2" joint="joint2" kp="80" kv="8" ctrlrange="-2.0 1.5"/>
+    <position name="act3" joint="joint3" kp="80" kv="8" ctrlrange="-2.5 1.5"/>
+    <position name="act4" joint="joint4" kp="60" kv="6" ctrlrange="-3.14 3.14"/>
+    <position name="act5" joint="joint5" kp="60" kv="6" ctrlrange="-2.0 2.0"/>
+    <position name="act6" joint="joint6" kp="60" kv="6" ctrlrange="-3.14 3.14"/>
+  </actuator>
+</mujoco>
