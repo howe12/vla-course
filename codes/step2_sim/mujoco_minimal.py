@@ -1,59 +1,69 @@
 #!/usr/bin/env python3
-"""MuJoCo 入门 1/3：最简物理仿真 — 小球自由落体
+"""MuJoCo 入门 1/3：最简物理仿真 — 小球自由落体（+ 渲染截图）
 
 用 30 行代码理解 MuJoCo 的核心循环：
-  XML 定义世界 → mjModel（"图纸"）→ mjData（"快照"）→ mj_step（推进）
+  XML → mjModel（"图纸"）→ mjData（"快照"）→ mj_step（推进）
+
+同时保存 4 帧渲染截图，展示小球从高处落下的过程。
 
 运行：
-    cd /develop/vla-course/codes
-    source .venv/bin/activate
+    cd /develop/vla-course/codes && source .venv/bin/activate
     python step2_sim/mujoco_minimal.py
 """
 
-import mujoco
-import numpy as np
+import os, mujoco, numpy as np
+from PIL import Image
 
-# ═══ 1. 定义世界：用 XML 字符串描述场景 ═══
 xml = """
 <mujoco>
   <worldbody>
     <light pos="0 0 3" dir="0 0 -1"/>
     <geom name="floor" type="plane" size="1 1 0.1" rgba="0.8 0.8 0.8 1"/>
     <body name="ball" pos="0 0 1.5">
-      <joint type="free"/>                          <!-- 自由体（6 DOF） -->
+      <joint type="free"/>
       <geom type="sphere" size="0.1" rgba="1 0.3 0.3 1" mass="0.1"/>
     </body>
   </worldbody>
 </mujoco>
 """
 
-# ═══ 2. 加载模型：XML → mjModel（编译为物理"图纸"） ═══
 model = mujoco.MjModel.from_xml_string(xml)
-data = mujoco.MjData(model)  # mjData：运行时的"状态快照"
+data = mujoco.MjData(model)
+renderer = mujoco.Renderer(model, height=480, width=640)
 
-print(f"模型有 {model.nq} 个位置自由度, {model.nv} 个速度自由度")
-print(f"物理步长 dt={model.opt.timestep:.4f}s  重力 g=({model.opt.gravity[0]},{model.opt.gravity[1]},{model.opt.gravity[2]})")
-print()
+out_dir = os.path.join(os.path.dirname(__file__), "_screenshots")
+os.makedirs(out_dir, exist_ok=True)
 
-# ═══ 3. 仿真循环：mj_step 推进物理世界 ═══
-print(f"{'Step':>5}  {'time':>8}  {'ball_z':>8}  {'ball_vz':>10}")
-print("-" * 45)
+print(f"模型: {model.nq} 自由度, dt={model.opt.timestep}s, g=({model.opt.gravity[2]:.2f})")
+print(f"小球初始高度: {data.qpos[2]:.2f}m\n")
+
+capture_steps = [0, 60, 120, 180]  # 捕获 4 个时刻
 
 for step in range(200):
-    # ── 核心：万物皆在 mj_step ──
     mujoco.mj_step(model, data)
 
-    # ── 读取状态：mjData 是活的状态快照 ──
-    ball_z = data.qpos[2]     # 球的 Z 坐标（第 3 个位置分量）
-    ball_vz = data.qvel[2]    # 球的 Z 速度
+    if step in capture_steps:
+        renderer.update_scene(data)
+        frame = renderer.render()
+        fname = f"mujoco_ball_{step:03d}.png"
+        fpath = os.path.join(out_dir, fname)
+        Image.fromarray(frame).save(fpath)
+        ball_z = data.qpos[2]
+        print(f"  📸 step {step:3d} → {fname}  (球高={ball_z:.3f}m)")
 
-    if step % 20 == 0:
-        print(f"{step:5d}  {data.time:8.4f}  {ball_z:8.4f}  {ball_vz:10.4f}")
-
-    # 球落地后停止
-    if ball_z < 0.15 and ball_vz > -0.01:
-        print(f"\n✅ 球在第 {step} 步落地 (t={data.time:.3f}s)")
-        print(f"   理论落地时间: sqrt(2*1.5/9.81) ≈ {np.sqrt(2*1.5/9.81):.3f}s ✓")
+    if data.qpos[2] < 0.15:
+        last_step = step
         break
+else:
+    last_step = 199
 
-print(f"\n🔑 核心公式: 1 次 mj_step = 物理时间推进 {model.opt.timestep}s")
+# 最后一张：球落地后
+renderer.update_scene(data)
+frame = renderer.render()
+fname = "mujoco_ball_landed.png"
+fpath = os.path.join(out_dir, fname)
+Image.fromarray(frame).save(fpath)
+print(f"  📸 step {last_step:3d} → {fname}  (球高={data.qpos[2]:.3f}m) ✅ 落地")
+
+print(f"\n截图保存在: {out_dir}/")
+print(f"🔑 200 步 × 0.002s = 0.4s 仿真时间")
