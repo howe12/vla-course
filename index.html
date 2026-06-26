@@ -345,6 +345,49 @@ function r_ch1(area,ch){
     '<div class="card"><div class="card-label">🔑 动作空间的含义</div><p>LIBERO 使用的是<strong>末端执行器增量控制</strong>：每一步预测的是末端位姿的<strong>变化量</strong>（而非绝对位置）。这和 OpenVLA 原论文的动作表示完全一致——§1.5 讲的 256 桶离散化，离散化的就是这 7 个维度的增量值。</p></div>'+
     '</section>'+
 
+    '<section><h3>📝 本章小结</h3><div class="card"><div class="card-label">带走这几条</div><ol style="padding-left:1.5em;line-height:2.1"><li><strong>VLA = 视觉 + 语言 + 动作</strong>的统一端到端模型，区别于 VLM（只输出文本）和 VLN（只做导航）</li><li><strong>三模态架构</strong>：视觉编码器 → LLM 主干 → 动作预测头，是当前主流设计</li><li><strong>动作离散化</strong>：256 桶方案让连续动作和 LLM Token 统一，自回归生成</li><li><strong>技术演进</strong>：RT-1→RT-2→OpenVLA→π0，从闭源到开源、从巨型到可训</li><li><strong>连续 vs 离散</strong>：离散化方便复用 LLM 架构，连续动作需要专门的扩散/流匹配方案</li></ol></div>'+
+
+    '<h4>🤔 思考题</h4><ol style="padding-left:1.5em;line-height:2.2"><li>如果把 VLA 的动作空间从 7 维（末端增量）扩展到全身人形机器人的 50+ 自由度，离散化的 256 桶方案还 work 吗？会遇到什么瓶颈？</li><li>从 RT-1 到 π0，视觉编码器从 EfficientNet 换成了 ViT 又换成了扩散模型——为什么视觉编码器的设计对 VLA 如此关键？</li><li>一个 VLA 模型在仿真中达到 90% 成功率，部署到真机能保持多少？可能的 gap 来源有哪些？</li></ol>';
+}
+
+/* ============================================================
+   第 2 章：仿真环境搭建
+   ============================================================ */
+function r_ch2(area,ch){
+  area.innerHTML=
+    '<div class="transition-note"><strong>🔄 从 §1 的 VLA 理论出发</strong> 你已经理解了 VLA 的三模态架构和动作离散化原理。现在在把这些概念落地的第一步——搭建仿真沙盒。MuJoCo 提供物理引擎，LIBERO 提供标准 VLA 评测任务，两者结合就是你的 VLA 实验室。</div>'+
+    '<div class="ch-header"><div class="ch-num">第 '+ch.num+' 章</div><h2>'+ch.title+'</h2><p class="ch-desc">'+ch.desc+'</p></div>'+
+    '<div class="callout tip"><div class="lb">🎯 学习目标</div><ul style="margin:8px 0 0 1.2em;line-height:1.9"><li>理解 MuJoCo 物理引擎的核心概念：mjModel / mjData / mj_step</li><li>掌握 LIBERO 基准测试：130 个标准化 VLA 任务的使用方法</li><li>在本机搭建 MuJoCo + LIBERO 仿真环境（uv 管理依赖）</li><li>跑通 LIBERO 随机动作 Demo，理解观测空间与动作空间</li><li>为第 3 章 OpenVLA 推理准备好仿真沙盒</li></ul></div>'+
+    '<div class="callout"><div class="lb">📍 本章定位</div><p style="margin:0">本章是<strong>VLA 实验的沙盒层</strong>。所有后续章节的模型推理（§3 OpenVLA）、训练评估（§5 SmolVLA、§6 Pi0）都在 LIBERO 仿真中完成。装好这一章的环境，后面所有实验都能直接跑。</p></div>'+
+
+    '<section><h3>2.1 MuJoCo 物理引擎简介</h3>'+
+    '<p><strong>MuJoCo</strong>（Multi-Joint dynamics with Contact）是 DeepMind 开发的高性能物理仿真引擎，专为机器人控制和强化学习设计。它是 LIBERO 的底层物理引擎——机械臂的关节运动、物体碰撞、摩擦力都由 MuJoCo 计算。</p>'+
+    '<div class="card"><div class="card-label">🔑 三个核心概念</div><ul style="line-height:2.0;padding-left:1.2em"><li><strong>mjModel</strong>：物理模型的"图纸"——关节定义、质量、惯量、几何形状。仿真中只读，不变。</li><li><strong>mjData</strong>：仿真运行时的"状态快照"——关节角度、速度、接触力。每一步仿真都会更新。</li><li><strong>mj_step</strong>：推进一个物理步长（默认 0.002s），根据力和约束更新 mjData。</li></ul></div>'+
+
+    '<section><h3>2.2 安装 MuJoCo 仿真环境</h3>'+
+    '<p>在本机用 <strong>uv</strong> 创建项目级虚拟环境，不污染系统 Python：</p>'+
+    '<pre><code>cd /develop/vla-course/codes\nuv venv\nsource .venv/bin/activate\nuv pip install mujoco</code></pre>'+
+    '<p>验证安装：</p>'+
+    '<pre><code>python -c "import mujoco; print(mujoco.__version__)"</code></pre>'+
+    '</section>'+
+
+    '<section><h3>2.3 LIBERO 基准测试</h3>'+
+    '<p><strong>LIBERO</strong> 是 Stanford 等机构联合发布的机器人操作基准，包含 130 个标准化任务，分为 4 个子集：</p>'+
+    '<table><thead><tr><th>子集</th><th>任务数</th><th>考察能力</th></tr></thead><tbody>'+
+    '<tr><td><strong>LIBERO-Spatial</strong></td><td>10</td><td>空间关系理解（把 A 放到 B 左边）</td></tr>'+
+    '<tr><td><strong>LIBERO-Object</strong></td><td>10</td><td>物体识别（挑出特定颜色/形状的物体）</td></tr>'+
+    '<tr><td><strong>LIBERO-Goal</strong></td><td>10</td><td>目标导向（按指令完成多步操作）</td></tr>'+
+    '<tr><td><strong>LIBERO-100</strong></td><td>100</td><td>综合评测（前三个的超集 + 更多任务）</td></tr>'+
+    '</tbody></table>'+
+    '<div class="card"><div class="card-label">🔑 为什么学 LIBERO？</div><p>OpenVLA 官方在 LIBERO 上评测，SmolVLA 论文也用它做对比实验。学会 LIBERO = 能和 SOTA 论文的表格直接对齐。你的模型在 LIBERO-Spatial 上跑到 80%，就能和 OpenVLA 原论文的数字比。</p></div>'+
+    '</section>'+
+
+    '<section><h3>2.4 动手实操：跑通 LIBERO</h3>'+
+
+    '<section><h4>2.4.1 安装 LIBERO</h4>'+
+    '<pre><code>cd /develop/vla-course/codes\nsource .venv/bin/activate\n# 国内需走代理下载 HuggingFace 资产\nexport http_proxy=http://127.0.0.1:7897\nuv pip install libero</code></pre>'+
+    '</section>'+
+
     '<section><h4>2.4.5 动手：跑通 LIBERO 随机动作 Demo</h4>'+
     '<p>运行 <code>codes/step2_sim/run_libero_demo.py</code>（80 步随机动作），下面是实际运行中截取的 <strong>agentview 观测帧</strong>：</p>'+
     '<div class="practice-box"><div class="pb-title">🧪 LIBERO 仿真验证实验</div><ol class="steps"><li><strong>进入目录</strong>：<code>cd /develop/vla-course/codes</code></li><li><strong>激活环境</strong>：<code>source .venv/bin/activate</code></li><li><strong>运行</strong>：<code>python step2_sim/run_libero_demo.py</code></li><li><strong>查看输出</strong>：脚本自动保存 5 帧观测截图到 <code>step2_sim/_screenshots/</code></li></ol></div>'+
@@ -371,13 +414,12 @@ function r_ch1(area,ch){
       '</div>'+
     '</div>'+
     '<div class="card"><div class="card-label">📸 观测帧说明</div><p>以上 5 帧来自 <strong>pick up the black bowl between the plate and the ramekin and place it on the plate</strong> 任务。场景包含 Panda 机械臂（右）、桌面物品（碗、盘子、烤碗、饼干）和固定顶视角相机。随机动作下机械臂在桌面上方抖动——第 3 章用 OpenVLA 替换随机动作后，机械臂将看懂语言指令并尝试完成抓取。</p></div>'+
-    '</section>'
-
+    '</section>'+
 
     '<section><h3>2.5 第一个 VLA 推理 Demo</h3>'+
     '<p>安装完环境后，跑通一个最小化的 VLA 推理流程——用 OpenVLA 在 LIBERO-Spatial 上做一个零样本推理：</p>'+
     '<div class="practice-box"><div class="pb-title">🧪 跑通第一个 VLA 仿真实验</div><ol class="steps"><li><strong>确认环境</strong>：<code>cd /develop/vla-course/codes && uv run python -c "import mujoco, libero; print(\'OK\')"</code></li><li><strong>创建脚本</strong>：在 <code>codes/step2_sim/</code> 下新建 <code>run_openvla.py</code>（见下方折叠面板）</li><li><strong>运行</strong>：<code>uv run python codes/step2_sim/run_openvla.py</code></li><li><strong>观察</strong>：终端打印每个 step 的预测动作和 gripper 状态</li></ol></div>'+
-    '<details><summary>展开查看 run_openvla.py 完整代码</summary><div class="details-body"><pre><code>#!/usr/bin/env python3\n"""最小化 VLA 推理：OpenVLA + LIBERO-Spatial"""\nimport numpy as np\nfrom libero.libero import benchmark\n\n# 1. 加载 LIBERO 任务\nprint("加载 LIBERO-Spatial...")\nbenchmark_dict = benchmark.get_benchmark_dict()\ntask_suite = benchmark_dict["libero_spatial"]()\ntask = task_suite.get_task(0)\n\nprint(f"任务: {task.name}")\nprint(f"指令: {task.language_instruction}")\n\n# 2. 创建环境\nenv_args = {\n    "task": task,\n    "bddl_file": task.bddl_file,\n    "camera_heights": 224,\n    "camera_widths": 224,\n}\nenv = task_suite.get_env(task_id=0, env_args=env_args)\n\n# 3. 重置 → 推理循环\nobs = env.reset()\nprint(f"观测 shape: {obs.shape}  (应为 224,224,3)")\nprint(f"动作维度: {env.action_space.shape[0]}  (应为 7)")\n\n# 模拟 VLA 推理（实际模型加载见第 3 章）\nfor step in range(20):\n    # ── VLA 推理位置（第 3 章替换为真实模型）──\n    action = np.random.uniform(-0.1, 0.1, 7)\n    action[6] = 1.0  # gripper 保持张开\n\n    obs, reward, done, info = env.step(action)\n\n    if step % 5 == 0:\n        print(f"Step {step:3d} | 动作 Δxyz=({action[0]:+.3f},{action[1]:+.3f},{action[2]:+.3f}) | 夹爪={action[6]:.1f} | done={done}")\n\n    if done:\n        print(f"✅ 任务完成于 step {step}")\n        break\n\nprint("仿真结束。下一步：第 3 章加载真实 OpenVLA 模型替换随机动作。")</code></pre></div></details>'+
+    '<details><summary>展开查看 run_openvla.py 完整代码</summary><div class="details-body"><pre><code>#!/usr/bin/env python3\n""""最小化 VLA 推理：OpenVLA + LIBERO-Spatial""""\nimport numpy as np\nfrom libero.libero import benchmark\n\n# 1. 加载 LIBERO 任务\nprint("加载 LIBERO-Spatial...")\nbenchmark_dict = benchmark.get_benchmark_dict()\ntask_suite = benchmark_dict["libero_spatial"]()\ntask = task_suite.get_task(0)\n\nprint(f"任务: {task.name}")\nprint(f"指令: {task.language_instruction}")\n\n# 2. 创建环境\nenv_args = {\n    "task": task,\n    "bddl_file": task.bddl_file,\n    "camera_heights": 224,\n    "camera_widths": 224,\n}\nenv = task_suite.get_env(task_id=0, env_args=env_args)\n\n# 3. 重置 → 推理循环\nobs = env.reset()\nprint(f"观测 shape: {obs.shape}  (应为 224,224,3)")\nprint(f"动作维度: {env.action_space.shape[0]}  (应为 7)")\n\n# 模拟 VLA 推理（实际模型加载见第 3 章）\nfor step in range(20):\n    # ── VLA 推理位置（第 3 章替换为真实模型）──\n    action = np.random.uniform(-0.1, 0.1, 7)\n    action[6] = 1.0  # gripper 保持张开\n\n    obs, reward, done, info = env.step(action)\n\n    if step % 5 == 0:\n        print(f"Step {step:3d} | 动作 Δxyz=({action[0]:+.3f},{action[1]:+.3f},{action[2]:+.3f}) | 夹爪={action[6]:.1f} | done={done}")\n\n    if done:\n        print(f"✅ 任务完成于 step {step}")\n        break\n\nprint("仿真结束。下一步：第 3 章加载真实 OpenVLA 模型替换随机动作。")</code></pre></div></details>'+
     '<p>这个脚本目前用随机动作占位。第 3 章会加载真实的 OpenVLA 7B 模型，把 <code>np.random.uniform</code> 替换为模型推理输出。</p>'+
     '</section>'+
 
@@ -386,9 +428,6 @@ function r_ch1(area,ch){
     '<h4>🤔 思考题</h4><ol style="padding-left:1.5em;line-height:2.2"><li>MuJoCo 的物理步长默认 0.002s，LIBERO 的控制周期是 0.05s（20 Hz）。这一个控制周期内 mj_step 被调用了多少次？为什么要这样设计？</li><li>LIBERO 的动作空间是末端增量而非绝对位置——这个设计对 VLA 模型有什么好处？（提示：结合 §1.8 的连续 vs 离散动作讨论）</li><li>为什么 VLA 评测需要 LIBERO-100 这样的 100 任务套件，而不能只在一个任务上测试？这反映了 VLA 的什么核心挑战？</li></ol>';
 }
 
-/* ============================================================
-   第 3-8 章（占位，后续补充）
-   ============================================================ */
 function placeholder(area,ch,detail){
   area.innerHTML=
     '<div class="transition-note"><strong>🔄 从上一章出发</strong></div>'+
