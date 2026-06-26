@@ -28,7 +28,7 @@ try:
     import torch
     import torch.nn as nn
     from torch.utils.data import Dataset, DataLoader
-    from torch.cuda.amp import autocast, GradScaler
+    from torch.cuda.amp import autocast, GradScaler  # noqa: F401 (kept for compat)
 except ImportError:
     print("❌ PyTorch 未安装")
     sys.exit(1)
@@ -264,7 +264,7 @@ def evaluate(model, loader, device):
         for batch in loader:
             images = batch["image"].to(device)
             action_tokens = batch["action_tokens"].to(device)
-            with autocast():
+            with torch.amp.autocast("cuda"):
                 loss = model(images, action_tokens=action_tokens)
             total_loss += loss.item()
             n_batches += 1
@@ -279,8 +279,18 @@ def train():
         print("   请在 L40 云端或配有 NVIDIA GPU 的机器上运行")
         sys.exit(1)
 
-    vram_gb = torch.cuda.get_device_properties(0).total_mem / 1024**3
+    vram_gb = torch.cuda.get_device_properties(0).total_memory / 1024**3
     print(f"GPU: {torch.cuda.get_device_name(0)} ({vram_gb:.1f} GB)")
+
+    # 自动调整 batch_size（根据可用显存）
+    if vram_gb < 10:
+        auto_bs = 4
+        print(f"  ⚠️  显存较小，自动 batch_size: {CONFIG['batch_size']} → {auto_bs}")
+        CONFIG["batch_size"] = auto_bs
+    elif vram_gb < 20:
+        auto_bs = 16
+        print(f"  💡 中等显存，自动 batch_size: {CONFIG['batch_size']} → {auto_bs}")
+        CONFIG["batch_size"] = auto_bs
 
     # ============================================================
     # 数据
@@ -352,7 +362,7 @@ def train():
         return 0.5 * (1 + math.cos(math.pi * progress))
 
     scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
-    scaler = GradScaler()  # AMP 混合精度
+    scaler = torch.amp.GradScaler("cuda")  # AMP 混合精度
 
     # ============================================================
     # 训练
@@ -375,7 +385,7 @@ def train():
             action_tokens = batch["action_tokens"].to(device)
 
             # 前向 + 反向
-            with autocast():
+            with torch.amp.autocast("cuda"):
                 loss = model(images, action_tokens=action_tokens)
                 loss = loss / CONFIG["gradient_accumulation"]
 
@@ -384,8 +394,8 @@ def train():
             if (global_step + 1) % CONFIG["gradient_accumulation"] == 0:
                 scaler.step(optimizer)
                 scaler.update()
-                scheduler.step()
                 optimizer.zero_grad()
+                scheduler.step()
 
             global_step += 1
 

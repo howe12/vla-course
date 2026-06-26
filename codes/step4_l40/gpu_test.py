@@ -37,7 +37,7 @@ def main():
 
     device_name = torch.cuda.get_device_name(0)
     props = torch.cuda.get_device_properties(0)
-    vram_gb = props.total_mem / 1024**3
+    vram_gb = props.total_memory / 1024**3
 
     print(f"  GPU:     {device_name}")
     print(f"  VRAM:    {vram_gb:.1f} GB")
@@ -88,7 +88,7 @@ def main():
     print("\n[3/3] 显存分配测试")
     for frac in [0.25, 0.5, 0.75, 0.9]:
         try:
-            total = props.total_mem
+            total = props.total_memory
             n_floats = int(total * frac) // 4
             x = torch.zeros(n_floats, device="cuda")
             used = torch.cuda.memory_allocated() / 1024**3
