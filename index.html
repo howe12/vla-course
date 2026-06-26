@@ -912,7 +912,99 @@ function r_ch6(area,ch){
     '<h4>🤔 思考题</h4><ol style="padding-left:1.5em;line-height:2.2"><li>Pi0 的 Flow Matching 用 10 步采样。如果改用 5 步，动作质量会怎么变？50 步呢？这个 trade-off 在真机部署时怎么选？</li><li>自回归 VLA 的"误差累积"问题，有没有不换范式的解法？比如增大动作维度、加残差连接、或者用 teacher-forcing ratio 调度？</li><li>如果让你从零设计一个 VLA 系统——任务是从杂乱桌面上抓取指定物体——你会选自回归还是扩散？为什么？</li></ol>';
 }
 
-function r_ch7(area,ch){ placeholder(area,ch,'<ul style="margin:8px 0 0 1.2em;line-height:1.9"><li>Gemini 双子座硬件平台回顾</li><li>云端模型 → 本地部署的完整流程</li><li>LeRobot 推理命令与参数调优</li><li>推理效果评估与常见问题诊断</li></ul>'); }
+function r_ch7(area,ch){
+  area.innerHTML=
+    '<div class="transition-note"><strong>🔄 从 §5-§6 的云端训练出发</strong> SmolVLA 和 Pi0 在 L40 上训好了，checkpoint 躺在 <code>/root/gpufree-data/vla-course/outputs/</code> 里。现在把这些"数字大脑"装进<strong>真实的 Gemini 双臂机器人</strong>——让仿真里验证过的 VLA 模型，驱动 4 条实体机械臂完成操作任务。</div>'+
+    '<div class="ch-header"><div class="ch-num">第 '+ch.num+' 章</div><h2>'+ch.title+'</h2><p class="ch-desc">'+ch.desc+'</p></div>'+
+    '<div class="callout tip"><div class="lb">🎯 学习目标</div><ul style="margin:8px 0 0 1.2em;line-height:1.9"><li>理解 Gemini 双臂机器人的硬件架构（4 臂 + NUC + 4 相机）</li><li>掌握 VLA 模型从 L40 到边缘设备的转换流程（PT→ONNX→TensorRT→INT8）</li><li>配置 LeRobot 真机接口，搭建 4 路相机实时推理管线</li><li>理解 sim2real gap 的三大来源（视觉域差、物理参数差、延迟差）</li><li>实现安全防护：力限制、速度钳制、急停</li></ul></div>'+
+    '<div class="callout"><div class="lb">📍 本章定位</div><p style="margin:0">本章是<strong>VLA 课程的落地章</strong>。前 6 章在仿真和云端完成了"理解→推理→训练"，本章把一切搬进物理世界。你在这里会第一次看到——仿真里那个正弦摆动的机械臂，变成了在你面前执行"把杯子放到桌上"的真实金属手臂。这是每个机器人工程师最兴奋的时刻。</p></div>'+
+
+    '<section><h3>7.1 Gemini 硬件架构</h3>'+
+    '<p>Gemini（双子座）是 NXROBO 的双臂机器人平台。先理解它在物理世界里的"身体"：</p>'+
+    '<table><thead><tr><th>组件</th><th>规格</th><th>VLA 中的角色</th></tr></thead><tbody>'+
+    '<tr><td><strong>机械臂</strong></td><td>4 臂（1 主 3 从），6-DOF + 夹爪</td><td>执行 VLA 输出的动作</td></tr>'+
+    '<tr><td><strong>计算单元</strong></td><td>NUC i7-14650HX, 20 核, RTX 4060 8GB</td><td>运行 VLA 推理</td></tr>'+
+    '<tr><td><strong>相机</strong></td><td>4 路 RGB 相机（前/左/右/腕部）</td><td>VLA 的"眼睛"——提供视觉观测</td></tr>'+
+    '<tr><td><strong>力传感器</strong></td><td>各关节力矩传感器</td><td>安全监控 + 力控模式</td></tr>'+
+    '<tr><td><strong>主从控制</strong></td><td>1 条主臂可遥操作，3 条从臂跟随</td><td>数据采集（模仿学习前置课程）</td></tr>'+
+    '</tbody></table>'+
+    '<h4>与 L40 仿真环境的差异</h4>'+
+    '<table><thead><tr><th>维度</th><th>L40 仿真（MuJoCo/LIBERO）</th><th>Gemini 真机</th></tr></thead><tbody>'+
+    '<tr><td><strong>视觉</strong></td><td>无噪完美 RGB，固定光照</td><td>真实光照、运动模糊、相机畸变</td></tr>'+
+    '<tr><td><strong>物理</strong></td><td>理想刚体，无摩擦误差</td><td>关节间隙、摩擦力、重力补偿误差</td></tr>'+
+    '<tr><td><strong>延迟</strong></td><td>仿真步长 0.002s</td><td>相机读取 30ms + 推理 40ms + 通信 10ms</td></tr>'+
+    '<tr><td><strong>安全</strong></td><td>碰撞 = 重来</td><td>碰撞 = 损坏硬件或伤人</td></tr>'+
+    '</tbody></table>'+
+    '<div class="callout warn"><div class="lb">⚠️ sim2real gap</div><p style="margin:0">仿真里训到 90% 成功率的模型，到真机上可能只有 30%。这不是代码 bug——是物理世界比数学方程复杂得多。本章的安全机制和域适应策略，就是为缩小这个 gap 服务的。</p></div>'+
+    '</section>'+
+
+    '<section><h3>7.2 模型转换：从 L40 到 NUC</h3>'+
+    '<p>L40 上训好的 PyTorch 模型（400M-3B 参数），需要经过三次转换才能在 Gemini 的 RTX 4060（8GB）上高效运行：</p>'+
+    '<pre><code>PyTorch (.pt) → ONNX → TensorRT → INT8 量化\n 14GB 显存      通用格式    优化引擎    5-8GB 显存\n (L40 训练)                          (NUC 推理)</code></pre>'+
+    '<h4>转换流程</h4>'+
+    '<pre><code># Step 1: PyTorch → ONNX（在 L40 上执行）\nimport torch\n\nmodel = SmolVLA()\nmodel.load_state_dict(torch.load("outputs/smolvla/best.pt"))\nmodel.eval()\n\ndummy_input = torch.randn(1, 3, 224, 224).cuda()\ntorch.onnx.export(\n    model, dummy_input, "smolvla.onnx",\n    input_names=["image"], output_names=["action"],\n    dynamic_axes={"image": {0: "batch"}},\n    opset_version=17,\n)\nprint("✅ ONNX 导出完成: smolvla.onnx")</code></pre>'+
+    '<pre><code># Step 2: ONNX → TensorRT + INT8（在 NUC 上执行）\ntrtexec --onnx=smolvla.onnx \\\n        --saveEngine=smolvla_int8.engine \\\n        --int8 \\\n        --fp16 \\\n        --workspace=4096\n\n# 验证\n# 预期: 模型大小 ~5GB, 推理延迟 ~20-40ms</code></pre>'+
+    '<h4>为什么需要 INT8？</h4>'+
+    '<table><thead><tr><th>精度</th><th>模型大小</th><th>推理延迟</th><th>精度损失</th></tr></thead><tbody>'+
+    '<tr><td><strong>FP32</strong></td><td>~14GB</td><td>~80ms</td><td>0%（基准）</td></tr>'+
+    '<tr><td><strong>FP16</strong></td><td>~7GB</td><td>~50ms</td><td><0.1%</td></tr>'+
+    '<tr><td><strong>INT8</strong></td><td>~3.5GB</td><td>~25ms</td><td><1%</td></tr>'+
+    '</tbody></table>'+
+    '<p>Gemini 的 RTX 4060 只有 8GB 显存——操作系统占 1GB，剩下 7GB 给模型。FP16 刚好够（但没余量做 batch），INT8 有 3.5GB 余量可以同时跑 2 个模型（左右臂各一个）。</p>'+
+    '</section>'+
+
+    '<section><h3>7.3 推理管线</h3>'+
+    '<p>真机推理管线和 §3.4 的 LIBERO 仿真管线原理相同，但多了三个物理世界的挑战：多相机同步、实时通信、安全校验。</p>'+
+    '<h4>完整管线图</h4>'+
+    '<pre><code>┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐\n│ 相机 1   │   │ 相机 2   │   │ 相机 3   │   │ 相机 4   │\n│ (前方)   │   │ (左侧)   │   │ (右侧)   │   │ (腕部)   │\n└────┬─────┘   └────┬─────┘   └────┬─────┘   └────┬─────┘\n     │               │               │               │\n     └───────────────┴───────┬───────┴───────────────┘\n                             │\n                    ┌────────▼────────┐\n                    │  图像预处理      │\n                    │  · resize 224    │\n                    │  · 拼接/选主     │\n                    │  · 归一化        │\n                    └────────┬────────┘\n                             │\n                    ┌────────▼────────┐\n                    │  VLA 推理        │\n                    │  · TensorRT INT8 │\n                    │  · 20-40ms       │\n                    │  · 输出: 7 维动作│\n                    └────────┬────────┘\n                             │\n                    ┌────────▼────────┐\n                    │  安全检查        │\n                    │  · 力限制        │\n                    │  · 速度钳制      │\n                    │  · 急停检测      │\n                    └────────┬────────┘\n                             │\n                    ┌────────▼────────┐\n                    │  IK + 关节控制   │\n                    │  · 动作→关节角   │\n                    │  · 100Hz 发送    │\n                    └────────┬────────┘\n                             │\n                    ┌────────▼────────┐\n                    │  🦾 Gemini 执行  │\n                    └─────────────────┘</code></pre>'+
+    '<h4>延迟预算</h4>'+
+    '<table><thead><tr><th>阶段</th><th>耗时</th><th>累计</th></tr></thead><tbody>'+
+    '<tr><td>相机采集</td><td>~30ms（4 路同步）</td><td>30ms</td></tr>'+
+    '<tr><td>图像预处理</td><td>~3ms（resize + 拼接）</td><td>33ms</td></tr>'+
+    '<tr><td><strong>VLA 推理</strong></td><td><strong>~25ms（INT8）</strong></td><td><strong>58ms</strong></td></tr>'+
+    '<tr><td>安全检查</td><td>~1ms</td><td>59ms</td></tr>'+
+    '<tr><td>IK + 通信</td><td>~5ms</td><td>64ms</td></tr>'+
+    '<tr><td><strong>总延迟</strong></td><td><strong>~64ms</strong></td><td><strong>≈15Hz</strong></td></tr>'+
+    '</tbody></table>'+
+    '<div class="callout"><div class="lb">💡 15Hz 够用吗？</div><p style="margin:0">对于桌面操作任务（抓取、放置、推拉），15Hz 足够。工业装配需要 50Hz+，但那是传统控制器的领域。VLA 的定位是<strong>理解+规划</strong>——15Hz 的推理频率配上 100Hz 的底层 IK 跟踪，可以覆盖 90% 的日常操作场景。</p></div>'+
+    '</section>'+
+
+    '<section><h3>7.4 LeRobot 真机适配</h3>'+
+    '<p>LeRobot 是 HuggingFace 的机器人框架，提供了标准的真机接口。适配 Gemini 需要配置三个关键参数：</p>'+
+    '<h4>运动学配置</h4>'+
+    '<pre><code># configs/gemini.yaml\nrobot:\n  type: gemini\n  arms: 4                    # 1 主 + 3 从\n  dof_per_arm: 6             # 6 个关节\n  gripper: binary            # 二值夹爪（开/关）\n  \n  # 关节限位（弧度）\n  joint_limits:\n    j1: [-3.14, 3.14]       # 基座旋转\n    j2: [-2.0, 1.5]          # 肩部\n    j3: [-2.5, 1.5]          # 肘部\n    j4: [-3.14, 3.14]        # 腕旋转\n    j5: [-2.0, 2.0]          # 腕俯仰\n    j6: [-3.14, 3.14]        # 末端\n  \n  # 控制参数\n  control_freq: 100           # 底层控制频率 (Hz)\n  vla_freq: 15                # VLA 推理频率 (Hz)\n  \n  # 安全\n  max_torque: 10.0            # 最大力矩 (Nm)\n  max_velocity: 3.0           # 最大角速度 (rad/s)\n  emergency_stop_torque: 15.0 # 急停阈值</code></pre>'+
+    '<h4>LeRobot 接口实现</h4>'+
+    '<pre><code>from lerobot.robots import Robot\n\nclass GeminiRobot(Robot):\n    """Gemini 双臂机器人 LeRobot 适配器"""\n    \n    def __init__(self, config_path="configs/gemini.yaml"):\n        self.config = self._load_config(config_path)\n        self.arms = {}  # {"main": Arm, "slave1": Arm, ...}\n        self.cameras = {}  # {"front": Camera, "left": Camera, ...}\n        self._connect_hardware()\n    \n    def get_observation(self):\n        """获取 VLA 推理所需的观测\n        \n        Returns:\n            dict: {\n                "images": {"front": (224,224,3), "wrist": (224,224,3)},\n                "joint_state": {"main": [6], "slave1": [6], ...},\n                "gripper": {"main": 0.0, ...}  # 0=关, 1=开\n            }\n        """\n        obs = {}\n        obs["images"] = {name: cam.read() for name, cam in self.cameras.items()}\n        obs["joint_state"] = {name: arm.get_joints() for name, arm in self.arms.items()}\n        obs["gripper"] = {name: arm.get_gripper() for name, arm in self.arms.items()}\n        return obs\n    \n    def execute_action(self, action, arm_name="main"):\n        """执行 VLA 输出的动作\n        \n        Args:\n            action: (7,) numpy — 6D 位姿增量 + gripper\n            arm_name: 执行动作的机械臂\n        \"\"\"\n        arm = self.arms[arm_name]\n        \n        # 1. 安全检查\n        action = self._safety_check(action)\n        \n        # 2. 增量 → 绝对位姿\n        current_pose = arm.get_end_effector_pose()\n        target_pose = current_pose + action[:6] * 0.01  # 缩小步长\n        \n        # 3. IK → 关节角\n        joint_angles = arm.inverse_kinematics(target_pose)\n        \n        # 4. 发送关节命令\n        arm.set_joints(joint_angles)\n        \n        # 5. 夹爪控制\n        if action[6] > 0:\n            arm.open_gripper()\n        else:\n            arm.close_gripper()</code></pre>'+
+    '</section>'+
+
+    '<section><h3>7.5 安全机制</h3>'+
+    '<p>仿真可以随便 crash，真机不行。Gemini 的安全设计分三层：</p>'+
+    '<table><thead><tr><th>层级</th><th>机制</th><th>触发条件</th><th>响应</th></tr></thead><tbody>'+
+    '<tr><td><strong>L1 软限制</strong></td><td>动作钳制</td><td>VLA 输出超出安全范围</td><td>clip 到安全区间</td></tr>'+
+    '<tr><td><strong>L2 力保护</strong></td><td>力矩监控</td><td>任一关节力矩 > 15 Nm</td><td>立即停止该臂</td></tr>'+
+    '<tr><td><strong>L3 急停</strong></td><td>物理急停按钮</td><td>人工按下</td><td>断电，所有臂立刻制动</td></tr>'+
+    '</tbody></table>'+
+    '<h4>L1：动作钳制</h4>'+
+    '<pre><code>def _safety_check(self, action):\n    """VLA 输出的第一道防线"""\n    # 位置增量限制（每步最大 5cm）\n    action[:3] = np.clip(action[:3], -0.05, 0.05)\n    # 旋转增量限制（每步最大 15°）\n    action[3:6] = np.clip(action[3:6], -0.26, 0.26)\n    # 夹爪不强制\n    action[6] = np.clip(action[6], -1.0, 1.0)\n    return action</code></pre>'+
+    '<h4>sim2real 的三种 gap</h4>'+
+    '<table><thead><tr><th>Gap 类型</th><th>来源</th><th>缓解策略</th></tr></thead><tbody>'+
+    '<tr><td><strong>视觉域差</strong></td><td>仿真无噪完美图像 vs 真实光照+模糊+畸变</td><td>训练时加颜色抖动、高斯噪声、随机裁剪</td></tr>'+
+    '<tr><td><strong>物理参数差</strong></td><td>质量/摩擦/阻尼不准确</td><td>域随机化：训练时随机扰动质量±20%、摩擦系数</td></tr>'+
+    '<tr><td><strong>延迟差</strong></td><td>仿真 500Hz vs 真机 15Hz</td><td>训练时人为加入动作延迟（丢帧）</td></tr>'+
+    '</tbody></table>'+
+    '</section>'+
+
+    '<section><h3>7.6 动手实验：SmolVLA 真机部署</h3>'+
+    '<p>把 L40 上训好的 SmolVLA checkpoint 部署到 Gemini 上运行端到端 demo：</p>'+
+    '<div class="practice-box"><div class="pb-title">🧪 Gemini 真机部署全流程</div><ol class="steps"><li><strong>L40 导出模型</strong>：<code>uv run python codes/step7_gemini/deploy_model.py --ckpt outputs/smolvla/best.pt</code></li><li><strong>传输到 NUC</strong>：<code>scp smolvla_int8.engine gemini@nuc-ip:/home/gemini/models/</code></li><li><strong>NUC 上加载模型</strong>：<code>uv run python codes/step7_gemini/run_gemini.py --model smolvla_int8.engine</code></li><li><strong>观察</strong>：终端打印每步动作 + 力矩监控，机械臂根据指令执行操作</li></ol></div>'+
+    '<details><summary>展开查看 deploy_model.py（模型转换脚本）</summary><div class="details-body"><pre><code>#!/usr/bin/env python3\n"""L40 → NUC 模型转换: PyTorch → ONNX → TensorRT INT8\"\"\"\nimport torch, argparse, os, sys\nsys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "step5_smolvla"))\nfrom train import SmolVLA\n\ndef main():\n    parser = argparse.ArgumentParser()\n    parser.add_argument("--ckpt", default="outputs/smolvla/best.pt")\n    parser.add_argument("--output", default="smolvla.onnx")\n    args = parser.parse_args()\n\n    print(f"加载 checkpoint: {args.ckpt}")\n    model = SmolVLA().cuda()\n    state = torch.load(args.ckpt, map_location="cuda")\n    if "model_state_dict" in state:\n        state = state["model_state_dict"]\n    model.load_state_dict(state, strict=False)\n    model.eval()\n\n    print("导出 ONNX...")\n    dummy = torch.randn(1, 3, 224, 224).cuda()\n    torch.onnx.export(\n        model, dummy, args.output,\n        input_names=["image"], output_names=["action"],\n        opset_version=17,\n    )\n    print(f"✅ ONNX 导出: {args.output}")\n    print("下一步: 复制到 NUC → trtexec --onnx=smolvla.onnx --int8 --saveEngine=smolvla_int8.engine")\n\nif __name__ == "__main__":\n    main()</code></pre></div></details>'+
+    '</section>'+
+
+    '<section><h3>📝 本章小结</h3><div class="card"><div class="card-label">带走这几条</div><ol style="padding-left:1.5em;line-height:2.1"><li><strong>Gemini = 4 臂 + NUC + 4 相机</strong>，RTX 4060 8GB 限制模型必须 INT8 量化</li><li><strong>模型转换三阶段</strong>：PyTorch(.pt)→ONNX→TensorRT→INT8（14GB→3.5GB）</li><li><strong>推理管线总延迟 ~64ms ≈ 15Hz</strong>，VLA 做理解+规划，底层 100Hz IK 做跟踪</li><li><strong>三层安全</strong>：动作钳制(L1)→力矩监控(L2)→急停(L3)，仿真 crash vs 真机损坏</li><li><strong>sim2real 三种 gap</strong>：视觉域差（加噪声训练）、物理参数差（域随机化）、延迟差（丢帧训练）</li></ol></div>'+
+
+    '<h4>🤔 思考题</h4><ol style="padding-left:1.5em;line-height:2.2"><li>Gemini 的 RTX 4060 只有 8GB 显存。如果未来需要同时跑 SmolVLA（左臂）+ SmolVLA（右臂），显存够吗？如果不够，有哪些办法？</li><li>仿真里训到 90% 成功率的模型，到真机上只有 30%。你会先怀疑什么？按什么顺序排查？</li><li>延迟预算里 VLA 推理占 25ms。能不能把 VLA 推理放到 L40 上、通过 WiFi 传结果回 NUC？这个方案有什么优缺点？</li></ol>';
+}
+
 function r_ch8(area,ch){ placeholder(area,ch,'<ul style="margin:8px 0 0 1.2em;line-height:1.9"><li>ACoT-VLA：链式思考动作生成</li><li>ManipDojo 2026 竞赛回顾</li><li>ICRA2026 赛道一实战经验</li><li>VLA 的未来：具身 AGI 还有多远？</li></ul>'); }
 
 })();
