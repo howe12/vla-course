@@ -371,6 +371,21 @@ function r_ch2(area,ch){
     '<pre><code>python -c "import mujoco; print(mujoco.__version__)"</code></pre>'+
     '</section>'+
 
+    '<section><h3>2.2.1  MuJoCo 入门实验 1：最简物理仿真</h3>'+
+    '<p>理解 MuJoCo 的核心循环——30 行代码看小球自由落体：</p>'+
+    '<div class="practice-box"><div class="pb-title"> 实验 1：小球自由落体</div><ol class="steps"><li><strong>运行</strong>：<code>cd /develop/vla-course/codes && source .venv/bin/activate && python step2_sim/mujoco_minimal.py</code></li><li><strong>观察</strong>：终端打印时间、球位置、速度，与自由落体公式对比</li><li><strong>修改</strong>：把 XML 中 <code>pos="0 0 1.5"</code> 改成 <code>pos="0 0 5.0"</code>，重跑看落地时间变化</li></ol></div>'+
+    '<details><summary>展开查看核心代码</summary><div class="details-body"><pre><code>model = mujoco.MjModel.from_xml_string(xml)  // XML -> "图纸"\ndata = mujoco.MjData(model)                   // 运行时"快照"\n\nfor step in range(200):\n    mujoco.mj_step(model, data)               // 推进 0.002s\n    ball_z = data.qpos[2]                     // 读取位置</code></pre></div></details>'+
+    '<div class="card"><div class="card-label"> 学会</div><ul style="line-height:2.0;padding-left:1.2em"><li><strong>mjModel</strong> = 物理世界的"图纸"（编译后的 XML）</li><li><strong>mjData</strong> = 运行时的"状态快照"（位置 qpos、速度 qvel）</li><li><strong>mj_step</strong> = 推进一个物理步长（0.002s），200 步 ~ 0.4s</li></ul></div>'+
+    '</section>'+
+
+    '<section><h3>2.2.2  MuJoCo 入门实验 2：关节控制</h3>'+
+    '<p>理解 <code>ctrl</code>  <code>qpos</code> 的 PD 跟踪关系 VLA 如何驱动机械臂：</p>'+
+    '<div class="practice-box"><div class="pb-title"> 实验 2：两阶段关节控制</div><ol class="steps"><li><strong>运行</strong>：<code>cd /develop/vla-course/codes && source .venv/bin/activate && python step2_sim/mujoco_arm_basics.py</code></li><li><strong>观察</strong>：终端显示收拢姿态展开姿态的 ctrl/qpos 跟踪误差</li><li><strong>修改</strong>：改 <code>pose_reach</code> 数组的值，观察不同姿态的关节角</li></ol></div>'+
+    '<details><summary>展开核心概念</summary><div class="details-body"><pre><code>data.ctrl[0] = 0.8          // 设置目标("转到 0.8 rad")\nmujoco.mj_step(model, data) // PD 控制器自动跟踪\nactual = data.qpos[7]       // 物理仿真后的实际角度</code></pre></div></details>'+
+    '<div class="card"><div class="card-label"> 学会</div><ul style="line-height:2.0;padding-left:1.2em"><li><strong>data.ctrl</strong> = VLA 输出的目标（你想要的位置）</li><li><strong>data.qpos</strong> = 物理仿真后的实际位置（PD 控制器跟踪结果）</li><li><strong>VLA 推理周期</strong>：每 40ms 输出  20 次 mj_step  机械臂到位</li><li>qpos[7:13] 对应 6 个关节，qpos[0:7] 是自由体（目标方块）</li></ul></div>'+
+
+    '<div class="callout"><div class="lb"> 实操路线图</div><p style="margin:0">以上两个 MuJoCo 实验建立底层直觉  下面用课程机械臂做完整仿真（sim_vla_arm.py） 再进入 LIBERO 标准评测。三层递进：<strong>原理  定制  标准化</strong>。</p></div>'+
+
     '<section><h3>2.2.5 动手：加载机械臂 + 模拟 VLA 控制</h3>'+
     '<p>在装 LIBERO 之前，先用课程自带的 6-DOF 机械臂模型跑通一个完整的仿真闭环：</p>'+
     '<div class="practice-box"><div class="pb-title">🧪 第一个仿真实验：看机械臂动起来</div><ol class="steps"><li><strong>确认 MuJoCo</strong>：<code>python3 -c "import mujoco; print(mujoco.__version__)"</code></li><li><strong>启动图形仿真</strong>：<code>cd /develop/vla-course/codes && uv run python step2_sim/sim_vla_arm.py</code></li><li><strong>无头模式</strong>（SSH/服务器）：<code>uv run python step2_sim/sim_vla_arm.py --headless</code></li><li><strong>观察</strong>：图形模式下，MuJoCo Viewer 弹出，机械臂按正弦轨迹摆动，末端逐渐靠近红色目标方块</li></ol></div>'+
@@ -398,6 +413,20 @@ function r_ch2(area,ch){
     '<div class="card"><div class="card-label">📸 姿态说明</div><p>以上 4 帧来自 <code>sim_vla_arm.py</code> 的实际运行截图。机械臂从初始竖直姿态（①）→ 基座旋转加肩部下压（②）→ 肘部弯折前伸（③）→ 末端到达目标方块附近（④），垂直位移约 70 cm。当前用正弦轨迹驱动——第 3 章替换为 OpenVLA 推理后，同样的机械臂将根据语言指令做出有目的性的动作。</p></div>'+
     '</section>'+
 
+
+    '<section><h3>2.2.8  LIBERO 入门实验 1：任务浏览器</h3>'+
+    '<p>探索 LIBERO 的 6 个子集 + 130 个任务 理解 VLA 考什么：</p>'+
+    '<div class="practice-box"><div class="pb-title"> 实验 3：LIBERO 任务浏览器</div><ol class="steps"><li><strong>运行</strong>：<code>cd /develop/vla-course/codes && source .venv/bin/activate && python step2_sim/libero_task_explorer.py</code></li><li><strong>观察</strong>：6 个子集概览  Spatial 10 个任务的语言指令  单个任务的完整属性</li><li><strong>思考</strong>：为什么 VLA 评测需要这么多任务？一个任务不够吗？</li></ol></details>'+
+    '<div class="card"><div class="card-label"> 学会</div><ul style="line-height:2.0;padding-left:1.2em"><li>LIBERO 有 4 个评测子集（Spatial/Object/Goal/100）+ 2 个训练子集</li><li>每个任务 = BDDL 场景描述 + 自然语言指令</li><li>观测空间包含 31 个 key：1 个图像 + 30 个本体/物体状态</li><li>动作空间 = 8 维（7 维末端增量 + gripper）</li></ul></div>'+
+    '</section>'+
+
+    '<section><h3>2.2.9  LIBERO 入门实验 2：动作空间实验</h3>'+
+    '<p>反复测试不同动作值，理解每维动作的含义和限幅机制：</p>'+
+    '<div class="practice-box"><div class="pb-title"> 实验 4：动作空间实验</div><ol class="steps"><li><strong>运行</strong>：<code>cd /develop/vla-course/codes && source .venv/bin/activate && python step2_sim/libero_action_test.py</code></li><li><strong>观察</strong>：5 个实验（前进/右移/下降/夹爪/限位）的末端位置变化</li><li><strong>修改</strong>：改 action 数组的值，体会增量控制的含义</li></ol></div>'+
+    '<details><summary>展开关键结论</summary><div class="details-body"><pre><code>// 动作 = 末端增量（不是绝对位置！）\naction[0] = +0.3  // X 前移\naction[1] = -0.3  // Y 右移\naction[6] = -1.0  // 夹爪关闭\naction[7] =  0.0  // 保留位\n\n// 即使 action=2.0（超大），实际位移也只有 ~0.06m\n// 因为环境内部有动作限幅（clipping）</code></pre></div></details>'+
+    '<div class="card"><div class="card-label"> 学会</div><ul style="line-height:2.0;padding-left:1.2em"><li>动作是末端增量，不是绝对位置</li><li>gripper_ctrl：正=开，负=关</li><li>环境有内置的动作限幅保护</li><li>第 3 章 VLA 模型输出的就是这 7 个增量值</li></ul></div>'+
+
+    '<div class="callout"><div class="lb"> 实操路线图</div><p style="margin:0">MuJoCo 底层（实验 1-2）  LIBERO 标准评测（实验 3-4）  课程机械臂实战（下方 2.2.5）  LIBERO Demo（2.4.5）。四层递进：<strong>原理  探索  定制  标准化</strong>。</p></div>'+
 
     '<section><h3>2.3 LIBERO 基准测试</h3>'+
     '<p><strong>LIBERO</strong> 是 Stanford 等机构联合发布的机器人操作基准，包含 130 个标准化任务，分为 4 个子集：</p>'+
