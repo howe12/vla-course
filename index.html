@@ -505,6 +505,15 @@ function r_ch2(area,ch){
     '<div class="callout warn"><div class="lb">⚠️ VLA 的特别之处</div><p style="margin:0">VLA 模型推理本身需要 40-500ms。所以 VLA 的控制周期通常在 <strong>10-25 Hz</strong>，远低于传统 PD 控制（1 kHz）。LIBERO 默认以 20 Hz 运行控制循环，恰好和 OpenVLA INT4 推理速度匹配。</p></div>'+
     '</section>'+
 
+    '<section><h3>2.2.5 动手：加载机械臂 + 模拟 VLA 控制</h3>'+
+    '<p>在装 LIBERO 之前，先用课程自带的 6-DOF 机械臂模型跑通一个完整的仿真闭环：</p>'+
+    '<div class="practice-box"><div class="pb-title">🧪 第一个仿真实验：看机械臂动起来</div><ol class="steps"><li><strong>确认 MuJoCo</strong>：<code>python3 -c "import mujoco; print(mujoco.__version__)"</code></li><li><strong>启动图形仿真</strong>：<code>cd /develop/vla-course/codes && uv run python step2_sim/sim_vla_arm.py</code></li><li><strong>无头模式</strong>（SSH/服务器）：<code>uv run python step2_sim/sim_vla_arm.py --headless</code></li><li><strong>观察</strong>：图形模式下，MuJoCo Viewer 弹出，机械臂按正弦轨迹摆动，末端逐渐靠近红色目标方块</li></ol></div>'+
+    '<p>这个脚本模拟了 VLA 的完整控制循环：</p>'+
+    '<pre><code>相机图像 ──→ [VLA 模型] ──→ 目标关节角\n    ↑                            ↓\n    └──── 末端位置 ←── [MuJoCo PD 控制]</code></pre>'+
+    '<p>目前 VLA 输出用正弦轨迹 mock。第 3 章会把 mock 替换为 OpenVLA 7B 的真实推理——到那时，你看到的机械臂运动就是大模型"看懂场景后做出的决策"。</p>'+
+    '<div class="card"><div class="card-label">📁 模型文件</div><p>机械臂模型在 <code>models/widowx_arm.xml</code>。它是一个 6-DOF 臂（基座旋转 + 肩/肘 + 腕x3 + 夹爪），带桌面、红色目标方块和固定相机。所有课程仿真都基于这个模型。<strong>用文本编辑器打开它</strong>——你能看到 body 的嵌套层级、joint 的旋转轴、actuator 的 PD 参数。</p></div>'+
+    '</section>'+
+
     '<section><h3>2.3 环境安装</h3>'+
     '<p>本课程使用 <strong>uv</strong> 管理 Python 依赖。uv 在项目目录内创建 <code>.venv/</code>，与系统 Python 和 conda 物理隔离：</p>'+
     '<pre><code># 1. 创建项目虚拟环境\ncd /develop/vla-course/codes\nuv sync\n\n# 2. 安装 MuJoCo\nuv pip install mujoco\n\n# 3. 验证 MuJoCo\nuv run python -c "import mujoco; print(mujoco.__version__)"\n# 输出: 3.x.x\n\n# 4. 安装 LIBERO\nuv pip install libero\n\n# 5. 验证 LIBERO\nuv run python -c "from libero.libero import benchmark; print(\'OK\')"</code></pre>'+
