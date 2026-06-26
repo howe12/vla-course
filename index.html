@@ -422,26 +422,26 @@ function r_ch2(area,ch){
     '<div style="display:flex;flex-wrap:wrap;gap:8px;margin:16px 0">'+
       '<div style="flex:1;min-width:140px;text-align:center">'+
         '<img src="figs/libero_step_000.png" alt="LIBERO Step 0" style="width:100%;border-radius:6px;box-shadow:var(--shadow-sm)">'+
-        '<span style="font-size:.7rem;color:var(--muted)">① Step 0 — 初始场景</span>'+
+        '<span style="font-size:.7rem;color:var(--muted)">① 初始悬停（默认姿态）</span>'+
       '</div>'+
       '<div style="flex:1;min-width:140px;text-align:center">'+
         '<img src="figs/libero_step_020.png" alt="LIBERO Step 20" style="width:100%;border-radius:6px;box-shadow:var(--shadow-sm)">'+
-        '<span style="font-size:.7rem;color:var(--muted)">② Step 20</span>'+
+        '<span style="font-size:.7rem;color:var(--muted)">② 右移下降（靠近桌面）</span>'+
       '</div>'+
       '<div style="flex:1;min-width:140px;text-align:center">'+
         '<img src="figs/libero_step_040.png" alt="LIBERO Step 40" style="width:100%;border-radius:6px;box-shadow:var(--shadow-sm)">'+
-        '<span style="font-size:.7rem;color:var(--muted)">③ Step 40</span>'+
+        '<span style="font-size:.7rem;color:var(--muted)">③ 大幅左移（横跨桌面）</span>'+
       '</div>'+
       '<div style="flex:1;min-width:140px;text-align:center">'+
         '<img src="figs/libero_step_060.png" alt="LIBERO Step 60" style="width:100%;border-radius:6px;box-shadow:var(--shadow-sm)">'+
-        '<span style="font-size:.7rem;color:var(--muted)">④ Step 60</span>'+
+        '<span style="font-size:.7rem;color:var(--muted)">④ 前伸 + 夹爪闭合</span>'+
       '</div>'+
       '<div style="flex:1;min-width:140px;text-align:center">'+
         '<img src="figs/libero_step_080.png" alt="LIBERO Step 80" style="width:100%;border-radius:6px;box-shadow:var(--shadow-sm)">'+
-        '<span style="font-size:.7rem;color:var(--muted)">⑤ Step 80</span>'+
+        '<span style="font-size:.7rem;color:var(--muted)">⑤ 上提取物（模拟举起）</span>'+
       '</div>'+
     '</div>'+
-    '<div class="card"><div class="card-label">📸 观测帧说明</div><p>以上 5 帧来自 <strong>pick up the black bowl between the plate and the ramekin and place it on the plate</strong> 任务。场景包含 Panda 机械臂（右）、桌面物品（碗、盘子、烤碗、饼干）和固定顶视角相机。随机动作下机械臂在桌面上方抖动——第 3 章用 OpenVLA 替换随机动作后，机械臂将看懂语言指令并尝试完成抓取。</p></div>'+
+    '<div class="card"><div class="card-label">📸 观测帧说明</div><p>以上 5 帧来自 <strong>pick up the black bowl between the plate and the ramekin and place it on the plate</strong> 任务。脚本用<strong>大幅定向动作</strong>（而非随机抖动）驱动 Panda 机械臂完成一个模拟抓取序列：① 初始悬停 → ② 右移下降靠近桌面 → ③ 大幅左移横跨桌面 → ④ 前伸 + 夹爪闭合（模拟抓取）→ ⑤ 上提取物（模拟举起）。</p><p style="margin-top:8px"><strong>💡 顶视角局限</strong>：LIBERO 默认只有顶部固定相机（agentview），机械臂在画面中只占 ~12% 像素，因此缩略图看起来差异不大。<strong>请点击大图仔细观察机械臂的 XY 位置和夹爪开合状态。</strong>第 3 章用 OpenVLA 替换定向动作后，机械臂将根据语言指令自主完成真实抓取。</p></div>'+
     '</section>'+
 
     '<section><h3>2.5 第一个 VLA 推理 Demo</h3>'+
