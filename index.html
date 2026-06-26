@@ -322,49 +322,150 @@ try{if(localStorage.getItem('vla-theme')==='dark'){
    ============================================================ */
 function r_ch1(area,ch){
   area.innerHTML=
+    '<div class="transition-note"><strong>🔄 从 VLN 和模仿学习出发</strong> 你已经让机器人在 Habitat 里听懂指令导航（VLN），也让机械臂复现过人类的演示轨迹（模仿学习）。现在把这两条线<strong>拧成一股绳</strong>——用一个统一的大模型同时理解语言、看懂图像、输出动作。</div>'+
     '<div class="ch-header"><div class="ch-num">第 '+ch.num+' 章</div><h2>'+ch.title+'</h2><p class="ch-desc">'+ch.desc+'</p></div>'+
-    '<div class="callout tip"><div class="lb">🎯 学习目标</div><ul style="margin:8px 0 0 1.2em;line-height:1.9"><li>理解 VLA 是什么、与 VLN 和模仿学习的区别</li><li>掌握 VLA 的核心架构：视觉编码器 + LLM + 动作头</li><li>了解从 RT-2 到 Pi0 的技术演进</li><li>清楚 VLA 当前的能力边界与挑战</li></ul></div>'+
-    '<div class="callout"><div class="lb">📍 本章定位</div><p style="margin:0">本章是 VLA 课程的<strong>理论基础</strong>。你已经完成了 VLN（视觉语言导航）和模仿学习（ACT/LeRobot），VLA 是这两条线的交汇——用一个统一的大模型同时理解语言、看懂图像、输出动作。</p></div>'+
+    '<div class="callout tip"><div class="lb">🎯 学习目标</div><ul style="margin:8px 0 0 1.2em;line-height:1.9"><li>理解 VLA 的定义、数学形式，与 VLN / VLM / 模仿学习的本质区别</li><li>掌握 VLA 三模态架构：视觉编码器 → LLM 主干 → 动作预测头</li><li>理解动作离散化的原理（256 桶方案）及其与 LLM Token 的统一</li><li>了解 RT-1→RT-2→OpenVLA→π0 的技术演进和设计取舍</li><li>清楚连续动作 vs 离散动作的工程权衡，以及实时推理的优化手段</li></ul></div>'+
+    '<div class="callout"><div class="lb">📍 本章定位</div><p style="margin:0">本章是 VLA 课程的<strong>理论基础</strong>。你已经完成了 VLN（视觉语言导航）和模仿学习（ACT/LeRobot），VLA 是这两条线的交汇——用一个统一的大模型同时理解语言、看懂图像、输出动作。第 3-5 章的 OpenVLA / SmolVLA / Pi0 实战，都建立在本章的概念之上。</p></div>'+
 
-    '<section><h3>1.1 从 VLN 到 VLA</h3>'+
-    '<p>你已经学了两种让机器人"听懂人话"的方式：</p>'+
-    '<table><thead><tr><th>范式</th><th>核心思路</th><th>代表模型</th><th>局限</th></tr></thead><tbody>'+
-    '<tr><td><strong>VLN</strong></td><td>专用模型：CNN+RNN，只做导航</td><td>Seq2SeqAgent, JanusVLN</td><td>任务单一，无法泛化到操作</td></tr>'+
-    '<tr><td><strong>模仿学习</strong></td><td>从人类演示中学习：ACT、Diffusion Policy</td><td>ACT, DP</td><td>每个任务需要新数据，不利用语言先验</td></tr>'+
-    '<tr><td><strong>VLA</strong></td><td>一个统一大模型：同时理解视觉、语言、动作</td><td>RT-2, OpenVLA, Pi0</td><td>训练成本高，实时性挑战</td></tr>'+
+    '<section><h3>1.1 什么是 VLA？</h3>'+
+    '<p><strong>视觉-语言-动作模型（Vision-Language-Action Model，VLA）</strong> 是一类将视觉感知、语言理解和机器人动作控制统一集成到同一个神经网络中的端到端模型。与 VLM 仅输出文本不同，VLA 的核心目标是<strong>根据视觉观察和语言指令，直接输出机器人可执行的动作序列</strong>，实现"所见即所动"的具身智能控制。</p>'+
+    '<div class="card"><div class="card-label">🔑 一句话定义</div><h5>VLA：图像 + 语言指令 → 动作序列</h5><p>VLM 解决"感知-理解"问题（让机器"看懂"），VLA 解决"感知-理解-执行"问题（让机器"看懂并动手"）。VLA 可以看作在 VLM 的能力基础上，增加了<strong>动作预测</strong>这一关键能力。</p></div>'+
+    '<div class="formula formula-block">p(<b>a</b><sub>1:T</sub> | <b>X</b><sub>img</sub>, <b>X</b><sub>text</sub>) = &#x220F;<sub>t=1</sub><sup>T</sup> p(<b>a</b><sub>t</sub> | <b>X</b><sub>img</sub>, <b>X</b><sub>text</sub>, <b>a</b><sub>1:t-1</sub>)</div>'+
+    '<p>其中 <b>a</b><sub>t</sub> 为 t 时刻机器人执行的动作，<b>X</b><sub>img</sub> 为视觉观察，<b>X</b><sub>text</sub> 为语言指令。这是一个自回归生成过程——每一步的动作预测都依赖于之前已经执行的动作历史。</p>'+
+    '</section>'+
+
+    '<section><h3>1.2 VLA vs VLM vs VLN vs 模仿学习</h3>'+
+    '<p>四种让机器人"听懂人话"的范式，本质区别在于<strong>输出模态</strong>和<strong>泛化方式</strong>：</p>'+
+    '<table><thead><tr><th>范式</th><th>输入</th><th>输出</th><th>核心思路</th><th>局限</th></tr></thead><tbody>'+
+    '<tr><td><strong>VLM</strong></td><td>图像+文本</td><td>文本</td><td>描述/问答/理解场景</td><td>不能控制机器人</td></tr>'+
+    '<tr><td><strong>VLN</strong></td><td>全景图+指令</td><td>离散导航动作</td><td>专用模型，只做导航</td><td>任务单一，无法操作</td></tr>'+
+    '<tr><td><strong>模仿学习</strong></td><td>图像+本体状态</td><td>连续动作</td><td>从人类演示中学习策略</td><td>每任务需新数据，不利用语言先验</td></tr>'+
+    '<tr><td><strong>VLA</strong></td><td>图像+语言+状态</td><td>动作序列</td><td>统一大模型，端到端</td><td>训练成本高，实时性挑战</td></tr>'+
     '</tbody></table>'+
-    '<div class="card"><div class="card-label">🔑 核心突破</div><h5>VLA = VLN 的语言理解 + 模仿学习的动作能力 + LLM 的世界知识</h5><p>VLA 的核心洞察是：互联网上预训练的大语言模型已经"知道"什么是厨房、杯子、抓取——把它接到机器人上，导航和操作都只是推理能力的延伸。</p></div></section>'+
+    '<div class="card"><div class="card-label">🔑 核心突破</div><h5>VLA = VLN 的语言理解 + 模仿学习的动作能力 + LLM 的世界知识</h5><p>VLA 的核心洞察是：互联网上预训练的大语言模型已经"知道"什么是厨房、杯子、抓取——把它接到机器人上，导航和操作都只是推理能力的延伸。RT-2 的实验证明，这种"知识迁移"能涌现出<strong>零样本视觉推理能力</strong>——识别不通用的物体、读懂表情符号的含义，这些从未在机器人数据中出现过。</p></div>'+
+    '</section>'+
 
-    '<section><h3>1.2 VLA 的核心架构</h3>'+
-    '<pre><code>┌──────────┐    ┌──────────┐    ┌──────────┐\n│  📷 视觉  │    │  📝 语言  │    │  🦾 动作  │\n│ 编码器    │    │ 指令      │    │ 头       │\n│ (ViT)    │    │          │    │ (MLP)    │\n└────┬─────┘    └────┬─────┘    └────┬─────┘\n     │               │               │\n     └───────┬───────┘               │\n             │                       │\n     ┌───────▼───────────────────────▼──┐\n     │        LLM (7B~55B)              │\n     │  融合视觉 token + 语言 token      │\n     │  → 自回归生成动作 token           │\n     └──────────────────────────────────┘</code></pre>'+
-    '<table><thead><tr><th>组件</th><th>作用</th><th>典型实现</th></tr></thead><tbody>'+
-    '<tr><td><strong>视觉编码器</strong></td><td>RGB 图像 → 视觉 token 序列</td><td>SigLIP, DINOv2, ViT</td></tr>'+
-    '<tr><td><strong>LLM 主干</strong></td><td>融合视觉+语言，推理下一步动作</td><td>LLaMA, Qwen2.5, Gemma</td></tr>'+
-    '<tr><td><strong>动作头</strong></td><td>语言空间 → 动作空间映射</td><td>MLP, 扩散头, Flow Matching</td></tr>'+
-    '</tbody></table></section>'+
-
-    '<section><h3>1.3 技术演进</h3>'+
-    '<table><thead><tr><th>代</th><th>模型</th><th>参数</th><th>核心创新</th><th>年份</th></tr></thead><tbody>'+
-    '<tr><td>1</td><td><strong>RT-1</strong></td><td>35M</td><td>Transformer + 动作离散化</td><td>2022</td></tr>'+
-    '<tr><td>2</td><td><strong>RT-2</strong></td><td>55B</td><td>PaLI-X + PaLM-E，互联网知识→机器人</td><td>2023</td></tr>'+
-    '<tr><td>3</td><td><strong>OpenVLA</strong></td><td>7B</td><td>首个开源 7B VLA，单卡可微调</td><td>2024</td></tr>'+
-    '<tr><td>4</td><td><strong>Pi0</strong></td><td>3B</td><td>扩散模型生成动作，Flow Matching</td><td>2025</td></tr>'+
-    '<tr><td>5</td><td><strong>SmolVLA</strong></td><td>450M</td><td>极致轻量，CPU 可推理，单卡训练</td><td>2025</td></tr>'+
+    '<section><h3>1.3 VLA 发展历程</h3>'+
+    '<p>VLA 经历了从<strong>两阶段独立策略</strong>到<strong>端到端统一策略</strong>的演进：</p>'+
+    '<table><thead><tr><th>阶段</th><th>时间</th><th>特征</th><th>代表工作</th></tr></thead><tbody>'+
+    '<tr><td><strong>1. 两阶段</strong></td><td>2019-2022</td><td>视觉感知和动作控制分开处理，CLIP+BC 等</td><td>CLIPort, ViLD</td></tr>'+
+    '<tr><td><strong>2. 统一</strong></td><td>2022-2023</td><td>RT-1 首次用 Transformer 统一三模态；RT-2 将 VLM 与动作统一训练</td><td>RT-1, RT-2</td></tr>'+
+    '<tr><td><strong>3. 开源规模化</strong></td><td>2023-2025</td><td>OpenVLA 开源 7B；π0 扩散动作；SmolVLA 极致轻量</td><td>OpenVLA, π0, SmolVLA</td></tr>'+
     '</tbody></table>'+
-    '<div class="card"><div class="card-label">📈 趋势</div><p>从大而全（RT-2 55B）→ 开源可用（OpenVLA 7B）→ 极致轻量（SmolVLA 450M）。同时，动作生成从<strong>离散分类</strong>（RT-1/RT-2）→ <strong>连续回归+扩散</strong>（Pi0），精度和泛化能力持续提升。</p></div></section>'+
+    '<table><thead><tr><th>时间</th><th>模型</th><th>机构</th><th>核心贡献</th></tr></thead><tbody>'+
+    '<tr><td>2022.7</td><td><strong>RT-1</strong></td><td>Google</td><td>首次用 Transformer 统一视觉-语言-动作</td></tr>'+
+    '<tr><td>2023.7</td><td><strong>RT-2</strong></td><td>Google</td><td>VLM+动作统一训练，离散化动作空间</td></tr>'+
+    '<tr><td>2024.3</td><td><strong>OpenVLA</strong></td><td>Stanford+UIUC</td><td>开源 7B VLA，HuggingFace 发布</td></tr>'+
+    '<tr><td>2024.7</td><td><strong>π0</strong></td><td>Physical Intelligence</td><td>扩散模型生成动作，专为人形机器人设计</td></tr>'+
+    '<tr><td>2025</td><td><strong>SmolVLA</strong></td><td>HuggingFace</td><td>450M 参数，消费级 GPU 可训练</td></tr>'+
+    '</tbody></table>'+
+    '<div class="card"><div class="card-label">📈 趋势</div><p>从大而全（RT-2 55B）→ 开源可用（OpenVLA 7B）→ 极致轻量（SmolVLA 450M）。动作生成从<strong>离散分类</strong>（RT-1/RT-2）→ <strong>连续回归+扩散</strong>（π0），精度和泛化能力持续提升。</p></div>'+
+    '</section>'+
 
-    '<section><h3>1.4 本课程选型理由</h3>'+
-    '<p>本课程围绕三款 VLA 模型展开，理由如下：</p>'+
-    '<table><thead><tr><th>模型</th><th>为什么选它</th><th>在哪练</th></tr></thead><tbody>'+
-    '<tr><td><strong>OpenVLA</strong></td><td>7B 参数，开源，文档完善，学术界基准</td><td>第 3 章 · 仿真推理</td></tr>'+
-    '<tr><td><strong>SmolVLA</strong></td><td>450M 参数，L40 单卡训练，成本最低</td><td>第 4 章 · 云端训练</td></tr>'+
-    '<tr><td><strong>Pi0</strong></td><td>扩散 VLA 代表，SOTA 性能，理解新范式</td><td>第 5 章 · L40 训练</td></tr>'+
-    '</tbody></table></section>'+
+    '<section><h3>1.4 VLA 核心架构：三模态输入</h3>'+
+    '<p>VLA 同时接收<strong>视觉观察</strong>、<strong>语言指令</strong>和<strong>机器人状态（可选）</strong>三种输入：</p>'+
+    '<h4>（1）视觉输入</h4>'+
+    '<p>来自机器人 RGB/RGB-D 相机，经视觉编码器得到特征序列：</p>'+
+    '<div class="formula formula-block"><b>V</b> = VisualEncoder(<b>X</b><sub>img</sub>) = [<b>v</b><sub>1</sub>, <b>v</b><sub>2</sub>, ..., <b>v</b><sub>N</sub>]</div>'+
+    '<table><thead><tr><th>编码器</th><th>特点</th><th>代表模型</th></tr></thead><tbody>'+
+    '<tr><td><strong>CLIP ViT</strong></td><td>大规模图文预训练，强语义理解</td><td>RT-2</td></tr>'+
+    '<tr><td><strong>SigLIP</strong></td><td>CLIP 增强版，对齐能力更强</td><td>OpenVLA</td></tr>'+
+    '<tr><td><strong>DINOv2</strong></td><td>自监督 ViT，细粒度视觉特征</td><td>SmolVLA</td></tr>'+
+    '</tbody></table>'+
+    '<h4>（2）语言输入</h4>'+
+    '<p>任务指令（如"拿起红色杯子"），经 LLM 编码为语言 Token。与 VLM 不同，VLA 中的语言输入主要承担<strong>任务指令编码</strong>的作用，而非开放式对话。</p>'+
+    '<h4>（3）机器人本体感知（可选）</h4>'+
+    '<p>部分 VLA 还会接收本体状态：关节角度 <b>q</b>、末端位姿 <b>p</b>、夹爪开合 g。三者拼接后送入 LLM 统一处理：</p>'+
+    '<div class="formula formula-block"><b>F</b><sub>combined</sub> = [<b>V</b>; <b>L</b>; <b>S</b>]</div>'+
+    '<pre><code>                     ┌──────────────────────┐\n图像输入 → [视觉编码器] → 视觉 Token 序列 V ─┐\n                                            │\n文本指令 → [LLM Encoder] → 语言 Token ──────┼→ [LLM 主干 Transformer] → 动作 Token\n                                            │\n本体感知 → [状态编码器] → 状态 Token S ─────┘\n                                            ↓\n                               [动作预测头: D 个 256 类分类头]\n                                            ↓\n                                     离散动作索引 → [动作还原] → 连续动作 a<sub>t</sub></code></pre>'+
+    '</section>'+
 
-    '<section><h3>1.5 VLA 的能力边界</h3>'+
-    '<div class="callout warn"><div class="lb">⚠️ 当前 VLA 还做不到的</div><ul style="margin:8px 0 0 1.2em;line-height:1.9"><li><strong>长时序规划</strong>：难以处理超过 20 步的复杂任务链</li><li><strong>精确力控</strong>：插拔 USB、拧螺丝等需要毫牛级力觉</li><li><strong>新物体泛化</strong>：没见过的物体形状仍会失败</li><li><strong>实时性</strong>：7B+ 模型推理 > 1 秒，不适合高速控制</li></ul></div>'+
+    '<section><h3>1.5 动作空间离散化</h3>'+
+    '<p>VLA 的一个核心挑战是：<strong>如何将连续的动作空间与基于 Token 的 LLM 架构融合？</strong></p>'+
+    '<p>RT-2 提出的解决方案：将连续动作离散化到 256 个 Token 桶中。假设动作 a ∈ [a<sub>min</sub>, a<sub>max</sub>]：</p>'+
+    '<div class="formula formula-block">a<sub>discrete</sub> = Clamp( &#x230A;(a − a<sub>min</sub>) / (a<sub>max</sub> − a<sub>min</sub>) × 255&#x230B;, 0, 255 )</div>'+
+    '<p>对于一个 D 维动作向量（如 7-DOF 机械臂），每个维度独立离散化：</p>'+
+    '<div class="formula formula-block"><b>a</b><sub>discrete</sub> = [a<sub>1</sub><sup>disc</sup>, a<sub>2</sub><sup>disc</sup>, ..., a<sub>D</sub><sup>disc</sup>]</div>'+
+    '<p>推理时还原为连续值：</p>'+
+    '<div class="formula formula-block">a<sub>continuous</sub> = a<sub>min</sub> + a<sub>discrete</sub> / 255 × (a<sub>max</sub> − a<sub>min</sub>)</div>'+
+    '<table><thead><tr><th>分桶方式</th><th>描述</th><th>优点</th><th>缺点</th></tr></thead><tbody>'+
+    '<tr><td><strong>均匀分桶</strong></td><td>动作范围均匀划分 256 桶</td><td>简单直观</td><td>稀疏区间浪费</td></tr>'+
+    '<tr><td><strong>数据驱动</strong></td><td>根据数据分布动态定边界</td><td>更精确覆盖分布</td><td>需预分析数据分布</td></tr>'+
+    '<tr><td><strong>对数分桶</strong></td><td>取对数后均匀分桶</td><td>覆盖大范围动作</td><td>不适合均匀分布</td></tr>'+
+    '</tbody></table>'+
+    '<div class="card"><div class="card-label">🔑 离散化的核心优势</div><ol style="padding-left:1.5em;line-height:2"><li><strong>与 LLM 统一</strong>：动作 Token 直接复用语言 Token 的建模框架</li><li><strong>语义化</strong>：不同桶可能学到有意义的语义（如"左转"、"右转"）</li><li><strong>多模态建模</strong>：softmax 天然支持多峰动作分布</li></ol></div>'+
+    '</section>'+
 
-    '<h4>🤔 思考题</h4><ol style="padding-left:1.5em;line-height:2.2"><li>VLA 和 VLN 的本质区别是什么？为什么 VLA 的野心更大？</li><li>为什么互联网预训练能帮机器人？LLM 中的"世界知识"是什么？</li><li>离散动作 vs 连续动作——各有什么优缺点？</li></ol>';
+    '<section><h3>1.6 动作预测头设计</h3>'+
+    '<p>动作预测头是 VLA 架构中负责将 LLM 表示转换为具体动作输出的模块。三种常见设计：</p>'+
+    '<table><thead><tr><th>类型</th><th>原理</th><th>公式</th><th>代表</th></tr></thead><tbody>'+
+    '<tr><td><strong>离散分类头</strong></td><td>每维度 256 类 softmax 分类</td><td>Softmax(<b>W</b><sub>i</sub> · <b>h</b><sub>L</sub>)</td><td>RT-2, OpenVLA</td></tr>'+
+    '<tr><td><strong>连续回归头</strong></td><td>MLP 直接回归连续值</td><td><b>w</b><sub>i</sub><sup>T</sup><b>h</b><sub>L</sub> + b<sub>i</sub></td><td>ACT, OpenVLA(混合)</td></tr>'+
+    '<tr><td><strong>扩散动作头</strong></td><td>去噪过程逐步生成动作</td><td>ε<sub>θ</sub>(a<sub>t</sub>, t, c)</td><td>π0, Diffusion Policy</td></tr>'+
+    '</tbody></table>'+
+    '<p>以 RT-2 为例，其动作预测头输出格式为：</p>'+
+    '<pre><code>[STOP Token] [Action Dim 1] [Action Dim 2] ... [Action Dim D]\n   1 Token      256 类分类      256 类分类          256 类分类</code></pre>'+
+    '<p>每个动作维度对应一个独立的 256 分类头，最终选择概率最高的桶作为该维度的动作预测。</p>'+
+    '</section>'+
+
+    '<section><h3>1.7 VLA 训练三阶段</h3>'+
+    '<p>VLA 训练通常分为三个阶段，每个阶段的数据和目标各不相同：</p>'+
+    '<table><thead><tr><th>阶段</th><th>数据</th><th>目标</th><th>参数策略</th></tr></thead><tbody>'+
+    '<tr><td><strong>预训练</strong></td><td>图像-文本对（LAION-2B）</td><td>视觉-语言基础对齐</td><td>对齐模块训练，编码器冻结</td></tr>'+
+    '<tr><td><strong>指令微调</strong></td><td>视觉-语言指令数据</td><td>指令跟随、任务理解</td><td>对齐模块 + 指令遵循训练</td></tr>'+
+    '<tr><td><strong>动作微调</strong></td><td>机器人演示轨迹（图像+指令+动作标签）</td><td>动作预测能力注入</td><td>视觉微调 + LLM(LoRA) + 动作头全量</td></tr>'+
+    '</tbody></table>'+
+    '<pre><code>┌─────────────────────────────────────────────────────┐\n│                    预训练阶段                        │\n│  数据: 图像-文本对（LAION-2B 等）                    │\n│  目标: 视觉-语言基础对齐                             │\n│  参数: 对齐模块训练，VL 编码器冻结                    │\n└─────────────────────────────────────────────────────┘\n                          ↓\n┌─────────────────────────────────────────────────────┐\n│                   指令微调阶段                        │\n│  数据: 视觉-语言指令数据（LLaVA-Instruct 等）         │\n│  目标: 指令跟随、任务理解                             │\n│  参数: 对齐模块 + 指令遵循训练                        │\n└─────────────────────────────────────────────────────┘\n                          ↓\n┌─────────────────────────────────────────────────────┐\n│                   动作微调阶段                        │\n│  数据: 机器人演示轨迹（图像 + 指令 + 动作标签）        │\n│  目标: 动作预测能力注入                              │\n│  参数: 视觉编码器微调 + LLM(LoRA) + 动作预测头        │\n└─────────────────────────────────────────────────────┘\n                          ↓\n                      完整 VLA 模型</code></pre>'+
+    '<div class="callout warn"><div class="lb">⚠️ 动作微调是关键</div><p style="margin:0">前两阶段本质上和训练一个 VLM 没有区别。第 3 阶段才是 VLA 与 VLM 的<strong>本质分水岭</strong>——模型第一次见到"图像 + 指令 → 动作"的配对数据。OpenVLA 采用的策略是：<strong>视觉编码器全量微调 + LLM 使用 LoRA + 动作头全量训练</strong>。</p></div>'+
+    '</section>'+
+
+    '<section><h3>1.8 连续动作 vs 离散动作</h3>'+
+    '<p>VLA 在处理动作空间时面临一个根本性选择：</p>'+
+    '<table><thead><tr><th>维度</th><th>连续动作</th><th>离散动作</th></tr></thead><tbody>'+
+    '<tr><td><strong>动作精度</strong></td><td>高（任意精度）</td><td>受桶数量限制</td></tr>'+
+    '<tr><td><strong>动作空间覆盖</strong></td><td>自然覆盖</td><td>可能存在稀疏区间</td></tr>'+
+    '<tr><td><strong>多峰分布</strong></td><td>需要混合模型</td><td>softmax 天然支持</td></tr>'+
+    '<tr><td><strong>与 LLM 融合</strong></td><td>需要额外设计</td><td>直接复用 Token 框架</td></tr>'+
+    '<tr><td><strong>代表工作</strong></td><td>ACT, π0</td><td>RT-2, OpenVLA</td></tr>'+
+    '</tbody></table>'+
+    '<div class="card"><div class="card-label">📈 行业趋势</div><p>2025 年后，<strong>扩散式连续动作生成</strong>（π0 路线）正在成为主流。它兼具连续动作的高精度和概率建模的多峰能力，是本课程第 5 章的重点。</p></div>'+
+    '</section>'+
+
+    '<section><h3>1.9 实时性要求与推理优化</h3>'+
+    '<p>机器人控制对实时性有严格要求，VLA 推理延迟是实际部署中的关键瓶颈：</p>'+
+    '<table><thead><tr><th>应用场景</th><th>控制频率</th><th>延迟容忍度</th></tr></thead><tbody>'+
+    '<tr><td>工业装配</td><td>500Hz-1kHz</td><td>&lt;2ms</td></tr>'+
+    '<tr><td>动态操作</td><td>50-100Hz</td><td>&lt;20ms</td></tr>'+
+    '<tr><td>日常家务</td><td>10-30Hz</td><td>&lt;100ms</td></tr>'+
+    '<tr><td>任务规划</td><td>1-5Hz</td><td>&lt;1s</td></tr>'+
+    '</tbody></table>'+
+    '<h4>推理延迟构成</h4>'+
+    '<table><thead><tr><th>阶段</th><th>OpenVLA (7B)</th><th>RT-2 (55B)</th></tr></thead><tbody>'+
+    '<tr><td>视觉编码</td><td>~10ms</td><td>~30ms</td></tr>'+
+    '<tr><td>LLM 前向传播</td><td>~30ms (INT4)</td><td>~500ms (FP16)</td></tr>'+
+    '<tr><td><strong>总延迟</strong></td><td><strong>~40ms (25Hz)</strong></td><td><strong>~530ms (~2Hz)</strong></td></tr>'+
+    '</tbody></table>'+
+    '<h4>五大优化手段</h4>'+
+    '<ol style="padding-left:1.5em;line-height:2.2"><li><strong>模型量化</strong>：INT8 降 30-40% 延迟，INT4 降 50-60%，可运行于消费级 GPU</li><li><strong>模型蒸馏</strong>：大模型 Teacher → 小模型 Student，OpenVLA-3B 比 7B 快 2 倍</li><li><strong>推测解码</strong>：小模型预测动作，大模型验证</li><li><strong>异步执行</strong>：控制与推理解耦，MPC 与 VLA 协同</li><li><strong>动作缓存</strong>：静态场景缓存预测，避免重复推理</li></ol>'+
+    '</section>'+
+
+    '<section><h3>1.10 本课程选型理由</h3>'+
+    '<p>本课程围绕三款 VLA 模型展开，选择逻辑如下：</p>'+
+    '<table><thead><tr><th>模型</th><th>参数</th><th>为什么选它</th><th>在哪练</th></tr></thead><tbody>'+
+    '<tr><td><strong>OpenVLA</strong></td><td>7B</td><td>开源标杆，文档完善，学术界基准</td><td>第 3 章 · 仿真推理</td></tr>'+
+    '<tr><td><strong>SmolVLA</strong></td><td>450M</td><td>极致轻量，L40 单卡训练，成本最低</td><td>第 4 章 · 云端训练</td></tr>'+
+    '<tr><td><strong>π0</strong></td><td>~3B</td><td>扩散 VLA 代表，SOTA 性能，理解新范式</td><td>第 5 章 · L40 训练</td></tr>'+
+    '</tbody></table>'+
+    '<div class="card"><div class="card-label">🔑 学习路线</div><p>先用 OpenVLA 理解 VLA 推理（第 3 章）→ 用 SmolVLA 上手训练（第 4 章）→ 用 π0 接触前沿扩散范式（第 5 章）→ 云端训练实战（第 6 章）→ 真机部署（第 7 章）。<strong>从推理到训练，从仿真到真机，从经典到前沿。</strong></p></div>'+
+    '</section>'+
+
+    '<section><h3>1.11 VLA 的能力边界</h3>'+
+    '<div class="callout warn"><div class="lb">⚠️ 当前 VLA 还做不到的</div><ul style="margin:8px 0 0 1.2em;line-height:1.9"><li><strong>长时序规划</strong>：难以处理超过 20 步的复杂任务链</li><li><strong>精确力控</strong>：插拔 USB、拧螺丝等需要毫牛级力觉的任务</li><li><strong>新物体泛化</strong>：没见过形状的物体仍会失败，域外泛化是开放问题</li><li><strong>高速实时控制</strong>：7B+ 模型推理 >1 秒，不适合 50Hz+ 的控制回路</li><li><strong>安全性保证</strong>：模型可能输出危险的超界动作，需要工程防护</li></ul></div>'+
+    '</section>'+
+
+    '<section><h3>📝 本章小结</h3><div class="card"><div class="card-label">带走这几条</div><ol style="padding-left:1.5em;line-height:2.1"><li><strong>VLA = 视觉编码器 + LLM + 动作头</strong>，端到端从像素预测关节角</li><li><strong>VLA ≠ VLM</strong>：VLM 输出文本，VLA 输出动作——多了一个"动手"的维度</li><li><strong>动作离散化</strong>：RT-2 方案将连续动作映射到 256 个 Token，与 LLM 统一</li><li><strong>三阶段训练</strong>：预训练（对齐）→ 指令微调（理解）→ 动作微调（执行）</li><li><strong>从 55B 到 450M</strong>：模型越来越小，推理越来越快，部署越来越可行</li><li><strong>扩散 VLA</strong>（π0）正在成为新一代主流，兼具精度和多峰建模能力</li></ol></div>'+
+
+    '<h4>🤔 思考题</h4><ol style="padding-left:1.5em;line-height:2.2"><li>VLA 和 VLN 的本质区别是什么？为什么说 VLA 是 VLN 和模仿学习的"交汇点"？</li><li>RT-2 把动作离散化为 256 个桶——假设机械臂关节范围 ±π rad，离散化后的精度是多少度？够用吗？</li><li>VLA 训练三阶段中，前两阶段和训练一个 VLM 有什么区别？为什么前两阶段不能跳过？</li><li>扩散 VLA（π0）和自回归 VLA（OpenVLA）的核心差异在哪？各自的优势和劣势是什么？</li></ol>';
 }
 
 /* ============================================================
