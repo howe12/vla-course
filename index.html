@@ -342,226 +342,37 @@ function r_ch1(area,ch){
     '<tr><td><strong>模仿学习</strong></td><td>图像+本体状态</td><td>连续动作</td><td>从人类演示中学习策略</td><td>每任务需新数据，不利用语言先验</td></tr>'+
     '<tr><td><strong>VLA</strong></td><td>图像+语言+状态</td><td>动作序列</td><td>统一大模型，端到端</td><td>训练成本高，实时性挑战</td></tr>'+
     '</tbody></table>'+
-    '<div class="card"><div class="card-label">🔑 核心突破</div><h5>VLA = VLN 的语言理解 + 模仿学习的动作能力 + LLM 的世界知识</h5><p>VLA 的核心洞察是：互联网上预训练的大语言模型已经"知道"什么是厨房、杯子、抓取——把它接到机器人上，导航和操作都只是推理能力的延伸。RT-2 的实验证明，这种"知识迁移"能涌现出<strong>零样本视觉推理能力</strong>——识别不通用的物体、读懂表情符号的含义，这些从未在机器人数据中出现过。</p></div>'+
-    '</section>'+
-
-    '<section><h3>1.3 VLA 发展历程</h3>'+
-    '<p>VLA 经历了从<strong>两阶段独立策略</strong>到<strong>端到端统一策略</strong>的演进：</p>'+
-    '<table><thead><tr><th>阶段</th><th>时间</th><th>特征</th><th>代表工作</th></tr></thead><tbody>'+
-    '<tr><td><strong>1. 两阶段</strong></td><td>2019-2022</td><td>视觉感知和动作控制分开处理，CLIP+BC 等</td><td>CLIPort, ViLD</td></tr>'+
-    '<tr><td><strong>2. 统一</strong></td><td>2022-2023</td><td>RT-1 首次用 Transformer 统一三模态；RT-2 将 VLM 与动作统一训练</td><td>RT-1, RT-2</td></tr>'+
-    '<tr><td><strong>3. 开源规模化</strong></td><td>2023-2025</td><td>OpenVLA 开源 7B；π0 扩散动作；SmolVLA 极致轻量</td><td>OpenVLA, π0, SmolVLA</td></tr>'+
-    '</tbody></table>'+
-    '<table><thead><tr><th>时间</th><th>模型</th><th>机构</th><th>核心贡献</th></tr></thead><tbody>'+
-    '<tr><td>2022.7</td><td><strong>RT-1</strong></td><td>Google</td><td>首次用 Transformer 统一视觉-语言-动作</td></tr>'+
-    '<tr><td>2023.7</td><td><strong>RT-2</strong></td><td>Google</td><td>VLM+动作统一训练，离散化动作空间</td></tr>'+
-    '<tr><td>2024.3</td><td><strong>OpenVLA</strong></td><td>Stanford+UIUC</td><td>开源 7B VLA，HuggingFace 发布</td></tr>'+
-    '<tr><td>2024.7</td><td><strong>π0</strong></td><td>Physical Intelligence</td><td>扩散模型生成动作，专为人形机器人设计</td></tr>'+
-    '<tr><td>2025</td><td><strong>SmolVLA</strong></td><td>HuggingFace</td><td>450M 参数，消费级 GPU 可训练</td></tr>'+
-    '</tbody></table>'+
-    '<div class="card"><div class="card-label">📈 趋势</div><p>从大而全（RT-2 55B）→ 开源可用（OpenVLA 7B）→ 极致轻量（SmolVLA 450M）。动作生成从<strong>离散分类</strong>（RT-1/RT-2）→ <strong>连续回归+扩散</strong>（π0），精度和泛化能力持续提升。</p></div>'+
-    '</section>'+
-
-    '<section><h3>1.4 VLA 核心架构：三模态输入</h3>'+
-    '<p>VLA 同时接收<strong>视觉观察</strong>、<strong>语言指令</strong>和<strong>机器人状态（可选）</strong>三种输入：</p>'+
-    '<h4>（1）视觉输入</h4>'+
-    '<p>来自机器人 RGB/RGB-D 相机，经视觉编码器得到特征序列：</p>'+
-    '<div class="formula formula-block"><b>V</b> = VisualEncoder(<b>X</b><sub>img</sub>) = [<b>v</b><sub>1</sub>, <b>v</b><sub>2</sub>, ..., <b>v</b><sub>N</sub>]</div>'+
-    '<table><thead><tr><th>编码器</th><th>特点</th><th>代表模型</th></tr></thead><tbody>'+
-    '<tr><td><strong>CLIP ViT</strong></td><td>大规模图文预训练，强语义理解</td><td>RT-2</td></tr>'+
-    '<tr><td><strong>SigLIP</strong></td><td>CLIP 增强版，对齐能力更强</td><td>OpenVLA</td></tr>'+
-    '<tr><td><strong>DINOv2</strong></td><td>自监督 ViT，细粒度视觉特征</td><td>SmolVLA</td></tr>'+
-    '</tbody></table>'+
-    '<h4>（2）语言输入</h4>'+
-    '<p>任务指令（如"拿起红色杯子"），经 LLM 编码为语言 Token。与 VLM 不同，VLA 中的语言输入主要承担<strong>任务指令编码</strong>的作用，而非开放式对话。</p>'+
-    '<h4>（3）机器人本体感知（可选）</h4>'+
-    '<p>部分 VLA 还会接收本体状态：关节角度 <b>q</b>、末端位姿 <b>p</b>、夹爪开合 g。三者拼接后送入 LLM 统一处理：</p>'+
-    '<div class="formula formula-block"><b>F</b><sub>combined</sub> = [<b>V</b>; <b>L</b>; <b>S</b>]</div>'+
-    '<pre><code>                     ┌──────────────────────┐\n图像输入 → [视觉编码器] → 视觉 Token 序列 V ─┐\n                                            │\n文本指令 → [LLM Encoder] → 语言 Token ──────┼→ [LLM 主干 Transformer] → 动作 Token\n                                            │\n本体感知 → [状态编码器] → 状态 Token S ─────┘\n                                            ↓\n                               [动作预测头: D 个 256 类分类头]\n                                            ↓\n                                     离散动作索引 → [动作还原] → 连续动作 a<sub>t</sub></code></pre>'+
-    '</section>'+
-
-    '<section><h3>1.5 动作空间离散化</h3>'+
-    '<p>VLA 的一个核心挑战是：<strong>如何将连续的动作空间与基于 Token 的 LLM 架构融合？</strong></p>'+
-    '<p>RT-2 提出的解决方案：将连续动作离散化到 256 个 Token 桶中。假设动作 a ∈ [a<sub>min</sub>, a<sub>max</sub>]：</p>'+
-    '<div class="formula formula-block">a<sub>discrete</sub> = Clamp( &#x230A;(a − a<sub>min</sub>) / (a<sub>max</sub> − a<sub>min</sub>) × 255&#x230B;, 0, 255 )</div>'+
-    '<p>对于一个 D 维动作向量（如 7-DOF 机械臂），每个维度独立离散化：</p>'+
-    '<div class="formula formula-block"><b>a</b><sub>discrete</sub> = [a<sub>1</sub><sup>disc</sup>, a<sub>2</sub><sup>disc</sup>, ..., a<sub>D</sub><sup>disc</sup>]</div>'+
-    '<p>推理时还原为连续值：</p>'+
-    '<div class="formula formula-block">a<sub>continuous</sub> = a<sub>min</sub> + a<sub>discrete</sub> / 255 × (a<sub>max</sub> − a<sub>min</sub>)</div>'+
-    '<table><thead><tr><th>分桶方式</th><th>描述</th><th>优点</th><th>缺点</th></tr></thead><tbody>'+
-    '<tr><td><strong>均匀分桶</strong></td><td>动作范围均匀划分 256 桶</td><td>简单直观</td><td>稀疏区间浪费</td></tr>'+
-    '<tr><td><strong>数据驱动</strong></td><td>根据数据分布动态定边界</td><td>更精确覆盖分布</td><td>需预分析数据分布</td></tr>'+
-    '<tr><td><strong>对数分桶</strong></td><td>取对数后均匀分桶</td><td>覆盖大范围动作</td><td>不适合均匀分布</td></tr>'+
-    '</tbody></table>'+
-    '<div class="card"><div class="card-label">🔑 离散化的核心优势</div><ol style="padding-left:1.5em;line-height:2"><li><strong>与 LLM 统一</strong>：动作 Token 直接复用语言 Token 的建模框架</li><li><strong>语义化</strong>：不同桶可能学到有意义的语义（如"左转"、"右转"）</li><li><strong>多模态建模</strong>：softmax 天然支持多峰动作分布</li></ol></div>'+
-    '</section>'+
-
-    '<section><h3>1.6 动作预测头设计</h3>'+
-    '<p>动作预测头是 VLA 架构中负责将 LLM 表示转换为具体动作输出的模块。三种常见设计：</p>'+
-    '<table><thead><tr><th>类型</th><th>原理</th><th>公式</th><th>代表</th></tr></thead><tbody>'+
-    '<tr><td><strong>离散分类头</strong></td><td>每维度 256 类 softmax 分类</td><td>Softmax(<b>W</b><sub>i</sub> · <b>h</b><sub>L</sub>)</td><td>RT-2, OpenVLA</td></tr>'+
-    '<tr><td><strong>连续回归头</strong></td><td>MLP 直接回归连续值</td><td><b>w</b><sub>i</sub><sup>T</sup><b>h</b><sub>L</sub> + b<sub>i</sub></td><td>ACT, OpenVLA(混合)</td></tr>'+
-    '<tr><td><strong>扩散动作头</strong></td><td>去噪过程逐步生成动作</td><td>ε<sub>θ</sub>(a<sub>t</sub>, t, c)</td><td>π0, Diffusion Policy</td></tr>'+
-    '</tbody></table>'+
-    '<p>以 RT-2 为例，其动作预测头输出格式为：</p>'+
-    '<pre><code>[STOP Token] [Action Dim 1] [Action Dim 2] ... [Action Dim D]\n   1 Token      256 类分类      256 类分类          256 类分类</code></pre>'+
-    '<p>每个动作维度对应一个独立的 256 分类头，最终选择概率最高的桶作为该维度的动作预测。</p>'+
-    '</section>'+
-
-    '<section><h3>1.7 VLA 训练三阶段</h3>'+
-    '<p>VLA 训练通常分为三个阶段，每个阶段的数据和目标各不相同：</p>'+
-    '<table><thead><tr><th>阶段</th><th>数据</th><th>目标</th><th>参数策略</th></tr></thead><tbody>'+
-    '<tr><td><strong>预训练</strong></td><td>图像-文本对（LAION-2B）</td><td>视觉-语言基础对齐</td><td>对齐模块训练，编码器冻结</td></tr>'+
-    '<tr><td><strong>指令微调</strong></td><td>视觉-语言指令数据</td><td>指令跟随、任务理解</td><td>对齐模块 + 指令遵循训练</td></tr>'+
-    '<tr><td><strong>动作微调</strong></td><td>机器人演示轨迹（图像+指令+动作标签）</td><td>动作预测能力注入</td><td>视觉微调 + LLM(LoRA) + 动作头全量</td></tr>'+
-    '</tbody></table>'+
-    '<pre><code>┌─────────────────────────────────────────────────────┐\n│                    预训练阶段                        │\n│  数据: 图像-文本对（LAION-2B 等）                    │\n│  目标: 视觉-语言基础对齐                             │\n│  参数: 对齐模块训练，VL 编码器冻结                    │\n└─────────────────────────────────────────────────────┘\n                          ↓\n┌─────────────────────────────────────────────────────┐\n│                   指令微调阶段                        │\n│  数据: 视觉-语言指令数据（LLaVA-Instruct 等）         │\n│  目标: 指令跟随、任务理解                             │\n│  参数: 对齐模块 + 指令遵循训练                        │\n└─────────────────────────────────────────────────────┘\n                          ↓\n┌─────────────────────────────────────────────────────┐\n│                   动作微调阶段                        │\n│  数据: 机器人演示轨迹（图像 + 指令 + 动作标签）        │\n│  目标: 动作预测能力注入                              │\n│  参数: 视觉编码器微调 + LLM(LoRA) + 动作预测头        │\n└─────────────────────────────────────────────────────┘\n                          ↓\n                      完整 VLA 模型</code></pre>'+
-    '<div class="callout warn"><div class="lb">⚠️ 动作微调是关键</div><p style="margin:0">前两阶段本质上和训练一个 VLM 没有区别。第 3 阶段才是 VLA 与 VLM 的<strong>本质分水岭</strong>——模型第一次见到"图像 + 指令 → 动作"的配对数据。OpenVLA 采用的策略是：<strong>视觉编码器全量微调 + LLM 使用 LoRA + 动作头全量训练</strong>。</p></div>'+
-    '</section>'+
-
-    '<section><h3>1.8 连续动作 vs 离散动作</h3>'+
-    '<p>VLA 在处理动作空间时面临一个根本性选择：</p>'+
-    '<table><thead><tr><th>维度</th><th>连续动作</th><th>离散动作</th></tr></thead><tbody>'+
-    '<tr><td><strong>动作精度</strong></td><td>高（任意精度）</td><td>受桶数量限制</td></tr>'+
-    '<tr><td><strong>动作空间覆盖</strong></td><td>自然覆盖</td><td>可能存在稀疏区间</td></tr>'+
-    '<tr><td><strong>多峰分布</strong></td><td>需要混合模型</td><td>softmax 天然支持</td></tr>'+
-    '<tr><td><strong>与 LLM 融合</strong></td><td>需要额外设计</td><td>直接复用 Token 框架</td></tr>'+
-    '<tr><td><strong>代表工作</strong></td><td>ACT, π0</td><td>RT-2, OpenVLA</td></tr>'+
-    '</tbody></table>'+
-    '<div class="card"><div class="card-label">📈 行业趋势</div><p>2025 年后，<strong>扩散式连续动作生成</strong>（π0 路线）正在成为主流。它兼具连续动作的高精度和概率建模的多峰能力，是本课程第 5 章的重点。</p></div>'+
-    '</section>'+
-
-    '<section><h3>1.9 实时性要求与推理优化</h3>'+
-    '<p>机器人控制对实时性有严格要求，VLA 推理延迟是实际部署中的关键瓶颈：</p>'+
-    '<table><thead><tr><th>应用场景</th><th>控制频率</th><th>延迟容忍度</th></tr></thead><tbody>'+
-    '<tr><td>工业装配</td><td>500Hz-1kHz</td><td>&lt;2ms</td></tr>'+
-    '<tr><td>动态操作</td><td>50-100Hz</td><td>&lt;20ms</td></tr>'+
-    '<tr><td>日常家务</td><td>10-30Hz</td><td>&lt;100ms</td></tr>'+
-    '<tr><td>任务规划</td><td>1-5Hz</td><td>&lt;1s</td></tr>'+
-    '</tbody></table>'+
-    '<h4>推理延迟构成</h4>'+
-    '<table><thead><tr><th>阶段</th><th>OpenVLA (7B)</th><th>RT-2 (55B)</th></tr></thead><tbody>'+
-    '<tr><td>视觉编码</td><td>~10ms</td><td>~30ms</td></tr>'+
-    '<tr><td>LLM 前向传播</td><td>~30ms (INT4)</td><td>~500ms (FP16)</td></tr>'+
-    '<tr><td><strong>总延迟</strong></td><td><strong>~40ms (25Hz)</strong></td><td><strong>~530ms (~2Hz)</strong></td></tr>'+
-    '</tbody></table>'+
-    '<h4>五大优化手段</h4>'+
-    '<ol style="padding-left:1.5em;line-height:2.2"><li><strong>模型量化</strong>：INT8 降 30-40% 延迟，INT4 降 50-60%，可运行于消费级 GPU</li><li><strong>模型蒸馏</strong>：大模型 Teacher → 小模型 Student，OpenVLA-3B 比 7B 快 2 倍</li><li><strong>推测解码</strong>：小模型预测动作，大模型验证</li><li><strong>异步执行</strong>：控制与推理解耦，MPC 与 VLA 协同</li><li><strong>动作缓存</strong>：静态场景缓存预测，避免重复推理</li></ol>'+
-    '</section>'+
-
-    '<section><h3>1.10 本课程选型理由</h3>'+
-    '<p>本课程围绕三款 VLA 模型展开，选择逻辑如下：</p>'+
-    '<table><thead><tr><th>模型</th><th>参数</th><th>为什么选它</th><th>在哪练</th></tr></thead><tbody>'+
-    '<tr><td><strong>OpenVLA</strong></td><td>7B</td><td>开源标杆，文档完善，学术界基准</td><td>第 3 章 · 仿真推理</td></tr>'+
-    '<tr><td><strong>SmolVLA</strong></td><td>450M</td><td>极致轻量，L40 单卡训练，成本最低</td><td>第 4 章 · 云端训练</td></tr>'+
-    '<tr><td><strong>π0</strong></td><td>~3B</td><td>扩散 VLA 代表，SOTA 性能，理解新范式</td><td>第 5 章 · L40 训练</td></tr>'+
-    '</tbody></table>'+
-    '<div class="card"><div class="card-label">🔑 学习路线</div><p>先用 OpenVLA 理解 VLA 推理（第 3 章）→ 用 SmolVLA 上手训练（第 4 章）→ 用 π0 接触前沿扩散范式（第 5 章）→ 云端训练实战（第 6 章）→ 真机部署（第 7 章）。<strong>从推理到训练，从仿真到真机，从经典到前沿。</strong></p></div>'+
-    '</section>'+
-
-    '<section><h3>1.11 VLA 的能力边界</h3>'+
-    '<div class="callout warn"><div class="lb">⚠️ 当前 VLA 还做不到的</div><ul style="margin:8px 0 0 1.2em;line-height:1.9"><li><strong>长时序规划</strong>：难以处理超过 20 步的复杂任务链</li><li><strong>精确力控</strong>：插拔 USB、拧螺丝等需要毫牛级力觉的任务</li><li><strong>新物体泛化</strong>：没见过形状的物体仍会失败，域外泛化是开放问题</li><li><strong>高速实时控制</strong>：7B+ 模型推理 >1 秒，不适合 50Hz+ 的控制回路</li><li><strong>安全性保证</strong>：模型可能输出危险的超界动作，需要工程防护</li></ul></div>'+
-    '</section>'+
-
-    '<section><h3>📝 本章小结</h3><div class="card"><div class="card-label">带走这几条</div><ol style="padding-left:1.5em;line-height:2.1"><li><strong>VLA = 视觉编码器 + LLM + 动作头</strong>，端到端从像素预测关节角</li><li><strong>VLA ≠ VLM</strong>：VLM 输出文本，VLA 输出动作——多了一个"动手"的维度</li><li><strong>动作离散化</strong>：RT-2 方案将连续动作映射到 256 个 Token，与 LLM 统一</li><li><strong>三阶段训练</strong>：预训练（对齐）→ 指令微调（理解）→ 动作微调（执行）</li><li><strong>从 55B 到 450M</strong>：模型越来越小，推理越来越快，部署越来越可行</li><li><strong>扩散 VLA</strong>（π0）正在成为新一代主流，兼具精度和多峰建模能力</li></ol></div>'+
-
-    '<h4>🤔 思考题</h4><ol style="padding-left:1.5em;line-height:2.2"><li>VLA 和 VLN 的本质区别是什么？为什么说 VLA 是 VLN 和模仿学习的"交汇点"？</li><li>RT-2 把动作离散化为 256 个桶——假设机械臂关节范围 ±π rad，离散化后的精度是多少度？够用吗？</li><li>VLA 训练三阶段中，前两阶段和训练一个 VLM 有什么区别？为什么前两阶段不能跳过？</li><li>扩散 VLA（π0）和自回归 VLA（OpenVLA）的核心差异在哪？各自的优势和劣势是什么？</li></ol>';
-}
-
-/* ============================================================
-   第 2 章：仿真环境搭建
-   ============================================================ */
-function r_ch2(area,ch){
-  area.innerHTML=
-    '<div class="transition-note"><strong>🔄 从 §1 的 VLA 理论出发</strong> 你已经理解了 VLA 的架构、动作离散化、训练三阶段。接下来把理论落地——在 MuJoCo 物理引擎里搭建机械臂仿真环境，用 LIBERO 的标准任务套件来评测 VLA 模型。</div>'+
-    '<div class="ch-header"><div class="ch-num">第 '+ch.num+' 章</div><h2>'+ch.title+'</h2><p class="ch-desc">'+ch.desc+'</p></div>'+
-    '<div class="callout tip"><div class="lb">🎯 学习目标</div><ul style="margin:8px 0 0 1.2em;line-height:1.9"><li>安装 MuJoCo 物理引擎和 LIBERO 仿真套件</li><li>理解 MuJoCo 的核心概念：mjModel、mjData、mj_step、控制周期</li><li>掌握 LIBERO 四套件（Spatial/Object/Goal/100）的用途和差异</li><li>理解 LIBERO 的动作空间和观测空间定义</li><li>跑通第一个 VLA 仿真推理 demo：OpenVLA + LIBERO-Spatial</li></ul></div>'+
-    '<div class="callout"><div class="lb">📍 本章定位</div><p style="margin:0">本章是<strong>实验基础设施</strong>。MuJoCo 提供物理根基，LIBERO 提供标准化的 VLA 考场。第 3 章的 OpenVLA 推理、第 4 章的 SmolVLA 训练、第 5 章的 Pi0 实验，全部跑在本章搭建的仿真环境之上。装好环境，后面每一章都能"开箱即用"。</p></div>'+
-
-    '<section><h3>2.1 为什么选 MuJoCo + LIBERO？</h3>'+
-    '<p>VLA 仿真需要两个东西：<strong>物理引擎</strong>（模拟刚体、关节、接触力）和<strong>任务套件</strong>（标准化的场景+指令+成功判定）。当前学术界的标准组合：</p>'+
-    '<table><thead><tr><th>仿真器</th><th>优势</th><th>适合</th><th>VLA 支持</th></tr></thead><tbody>'+
-    '<tr><td><strong>MuJoCo</strong></td><td>接触模型精密、速度快、原生 Python、MJCF 简洁</td><td>物理仿真基础</td><td>底层引擎</td></tr>'+
-    '<tr><td><strong>LIBERO</strong></td><td>130 个预置任务、标准 VLA 评测、gym.Env 接口</td><td>VLA 基准测试</td><td>原生支持 OpenVLA/RT-2</td></tr>'+
-    '<tr><td>Isaac Sim</td><td>高保真渲染、NVIDIA 生态、域随机化</td><td>视觉策略训练</td><td>需额外适配</td></tr>'+
-    '<tr><td>PyBullet</td><td>简单易用、社区大</td><td>快速原型</td><td>需额外适配</td></tr>'+
-    '</tbody></table>'+
-    '<div class="card"><div class="card-label">🔑 选型原因</div><p>MuJoCo 提供物理引擎，LIBERO 在 MuJoCo 之上提供了标准的 VLA 任务套件。两者搭配是 OpenVLA、RDT-1B、RT-2 等主流论文的默认评测方案。<strong>选它们，你的实验结果可以直接和论文对标。</strong></p></div>'+
-    '</section>'+
-
-    '<section><h3>2.2 MuJoCo 核心概念</h3>'+
-    '<p>MuJoCo 的编程模型围绕三个核心概念展开。理解这三个概念，你就能看懂任何 MuJoCo 仿真代码：</p>'+
-    '<table><thead><tr><th>概念</th><th>C 类型</th><th>是什么</th><th>通俗理解</th></tr></thead><tbody>'+
-    '<tr><td><strong>model</strong></td><td><code>mjModel</code></td><td>从 XML/MJCF 编译得到，<strong>不可变</strong></td><td>机器人的"设计图纸"——关节类型、连杆长度、质量</td></tr>'+
-    '<tr><td><strong>data</strong></td><td><code>mjData</code></td><td>每次仿真步更新，<strong>状态快照</strong></td><td>机器人的"实时状态"——当前位置、速度、接触力</td></tr>'+
-    '<tr><td><strong>mj_step</strong></td><td>函数调用</td><td>推进一个物理步，更新 data</td><td>按下"播放"按钮，物理引擎算一帧</td></tr>'+
-    '</tbody></table>'+
-    '<pre><code>import mujoco\n\nmodel = mujoco.MjModel.from_xml_path("robot.xml")\ndata  = mujoco.MjData(model)\n\n# 设置控制信号\ndata.ctrl[0] = 0.5  # 给第一个执行器发指令\n\n# 推进一步物理仿真\nmujoco.mj_step(model, data)\n\n# 读取状态\nprint(data.qpos[0])   # 第一个关节的角度\nprint(data.qvel[0])   # 第一个关节的角速度</code></pre>'+
-    '<h4>物理步长 vs 控制周期</h4>'+
-    '<table><thead><tr><th>概念</th><th>英文</th><th>典型值</th><th>作用</th></tr></thead><tbody>'+
-    '<tr><td><strong>物理步长</strong></td><td>physics timestep</td><td>0.002 s (500 Hz)</td><td>MuJoCo 内部数值积分的步长，越小越精确但越慢</td></tr>'+
-    '<tr><td><strong>控制周期</strong></td><td>control period</td><td>0.02~0.1 s (10-50 Hz)</td><td>更新 <code>data.ctrl</code> 的频率</td></tr>'+
-    '</tbody></table>'+
-    '<div class="callout warn"><div class="lb">⚠️ VLA 的特别之处</div><p style="margin:0">VLA 模型推理本身需要 40-500ms。所以 VLA 的控制周期通常在 <strong>10-25 Hz</strong>，远低于传统 PD 控制（1 kHz）。LIBERO 默认以 20 Hz 运行控制循环，恰好和 OpenVLA INT4 推理速度匹配。</p></div>'+
-    '</section>'+
-
-    '<section><h3>2.2.5 动手：加载机械臂 + 模拟 VLA 控制</h3>'+
-    '<p>在装 LIBERO 之前，先用课程自带的 6-DOF 机械臂模型跑通一个完整的仿真闭环：</p>'+
-    '<div class="practice-box"><div class="pb-title">🧪 第一个仿真实验：看机械臂动起来</div><ol class="steps"><li><strong>确认 MuJoCo</strong>：<code>python3 -c "import mujoco; print(mujoco.__version__)"</code></li><li><strong>启动图形仿真</strong>：<code>cd /develop/vla-course/codes && uv run python step2_sim/sim_vla_arm.py</code></li><li><strong>无头模式</strong>（SSH/服务器）：<code>uv run python step2_sim/sim_vla_arm.py --headless</code></li><li><strong>观察</strong>：图形模式下，MuJoCo Viewer 弹出，机械臂按正弦轨迹摆动，末端逐渐靠近红色目标方块</li></ol></div>'+
-    '<p>这个脚本模拟了 VLA 的完整控制循环：</p>'+
-    '<pre><code>相机图像 ──→ [VLA 模型] ──→ 目标关节角\n    ↑                            ↓\n    └──── 末端位置 ←── [MuJoCo PD 控制]</code></pre>'+
-    '<p>目前 VLA 输出用正弦轨迹 mock。第 3 章会把 mock 替换为 OpenVLA 7B 的真实推理——到那时，你看到的机械臂运动就是大模型"看懂场景后做出的决策"。</p>'+
-    '<div style="display:flex;flex-wrap:wrap;gap:8px;margin:16px 0">'+
-      '<div style="flex:1;min-width:140px;text-align:center">'+
-        '<img src="figs/sim_pose0_start.png" alt="初始姿态" style="width:100%;border-radius:6px;box-shadow:var(--shadow-sm)">'+
-        '<span style="font-size:.7rem;color:var(--muted)">① 初始姿态（竖直）</span>'+
-      '</div>'+
-      '<div style="flex:1;min-width:140px;text-align:center">'+
-        '<img src="figs/sim_pose1_rotate.png" alt="基座旋转" style="width:100%;border-radius:6px;box-shadow:var(--shadow-sm)">'+
-        '<span style="font-size:.7rem;color:var(--muted)">② 基座旋转 + 肩部下压</span>'+
-      '</div>'+
-      '<div style="flex:1;min-width:140px;text-align:center">'+
-        '<img src="figs/sim_pose2_reach.png" alt="前伸" style="width:100%;border-radius:6px;box-shadow:var(--shadow-sm)">'+
-        '<span style="font-size:.7rem;color:var(--muted)">③ 肩肘弯折前伸</span>'+
-      '</div>'+
-      '<div style="flex:1;min-width:140px;text-align:center">'+
-        '<img src="figs/sim_pose3_target.png" alt="接近目标" style="width:100%;border-radius:6px;box-shadow:var(--shadow-sm)">'+
-        '<span style="font-size:.7rem;color:var(--muted)">④ 末端接近目标方块</span>'+
-      '</div>'+
-    '</div>'+
-    '<div class="card"><div class="card-label">📁 模型文件</div><p>机械臂模型在 <code>models/widowx_arm.xml</code>。它是一个 6-DOF 臂（基座旋转 + 肩/肘 + 腕x3 + 夹爪），带桌面、红色目标方块和固定相机。所有课程仿真都基于这个模型。<strong>用文本编辑器打开它</strong>——你能看到 body 的嵌套层级、joint 的旋转轴、actuator 的 PD 参数。</p></div>'+
-    '</section>'+
-
-    '<section><h3>2.3 环境安装</h3>'+
-    '<p>本课程使用 <strong>uv</strong> 管理 Python 依赖。uv 在项目目录内创建 <code>.venv/</code>，与系统 Python 和 conda 物理隔离：</p>'+
-    '<pre><code># 1. 创建项目虚拟环境\ncd /develop/vla-course/codes\nuv sync\n\n# 2. 安装 MuJoCo\nuv pip install mujoco\n\n# 3. 验证 MuJoCo\nuv run python -c "import mujoco; print(mujoco.__version__)"\n# 输出: 3.x.x\n\n# 4. 安装 LIBERO\nuv pip install libero\n\n# 5. 验证 LIBERO\nuv run python -c "from libero.libero import benchmark; print(\'OK\')"</code></pre>'+
-    '<div class="callout"><div class="lb">💡 硬件要求</div><p style="margin:0">MuJoCo + LIBERO 仿真本身只需要 CPU（物理计算在 CPU 上）。VLA 模型推理需要 GPU。本章的安装步骤在<strong>任何 Linux 机器</strong>上都能跑通。后续章节的模型推理和训练需要 L40 云端 GPU（第 6 章）。</p></div>'+
-    '</section>'+
-
-    '<section><h3>2.4 LIBERO 深入</h3>'+
-    '<p>LIBERO 是目前 VLA 领域最主流的开源仿真基准。理解它的结构，是后续所有实验的前提：</p>'+
-    '<h4>四套件一览</h4>'+
-    '<table><thead><tr><th>套件</th><th>任务数</th><th>难度</th><th>考点</th><th>示例任务</th></tr></thead><tbody>'+
-    '<tr><td><strong>LIBERO-Spatial</strong></td><td>10</td><td>⭐</td><td>空间关系理解</td><td>把碗放到盘子上、把杯子推到左边</td></tr>'+
-    '<tr><td><strong>LIBERO-Object</strong></td><td>10</td><td>⭐⭐</td><td>物体识别+操作</td><td>拿起红色积木、把黄油放到篮子里</td></tr>'+
-    '<tr><td><strong>LIBERO-Goal</strong></td><td>10</td><td>⭐⭐</td><td>语言指令跟随</td><td>"把字母方块放到烤面包机里"</td></tr>'+
-    '<tr><td><strong>LIBERO-100</strong></td><td>100</td><td>⭐⭐⭐</td><td>综合多任务泛化</td><td>100 个不同场景+物体的组合</td></tr>'+
-    '</tbody></table>'+
-    '<h4>LIBERO 的 gym.Env 接口</h4>'+
-    '<p>每个 LIBERO 任务都遵循标准的强化学习环境接口：</p>'+
-    '<pre><code>from libero.libero import benchmark\n\n# 加载基准\nbenchmark_dict = benchmark.get_benchmark_dict()\ntask_suite = benchmark_dict["libero_spatial"]()\n\n# 创建环境\ntask = task_suite.get_task(0)\nenv_args = {"task": task, "bddl_file": task.bddl_file, "camera_heights": 224, "camera_widths": 224}\nenv = task_suite.get_env(task_id=0, env_args=env_args)\n\n# 重置环境\nobs = env.reset()\nprint(f"观测 shape: {obs.shape}")       # (224, 224, 3) RGB\n\n# 执行随机动作\naction = env.action_space.sample()\nprint(f"动作 shape: {action.shape}")    # (7,) — 6D 位姿增量 + gripper\n\nobs, reward, done, info = env.step(action)</code></pre>'+
-    '<h4>动作空间</h4>'+
-    '<table><thead><tr><th>维度</th><th>含义</th><th>范围</th><th>说明</th></tr></thead><tbody>'+
-    '<tr><td>0</td><td>Δx</td><td>[-1, 1]</td><td>末端 x 方向增量（归一化）</td></tr>'+
-    '<tr><td>1</td><td>Δy</td><td>[-1, 1]</td><td>末端 y 方向增量</td></tr>'+
-    '<tr><td>2</td><td>Δz</td><td>[-1, 1]</td><td>末端 z 方向增量</td></tr>'+
-    '<tr><td>3</td><td>Δroll</td><td>[-1, 1]</td><td>绕 x 轴旋转增量</td></tr>'+
-    '<tr><td>4</td><td>Δpitch</td><td>[-1, 1]</td><td>绕 y 轴旋转增量</td></tr>'+
-    '<tr><td>5</td><td>Δyaw</td><td>[-1, 1]</td><td>绕 z 轴旋转增量</td></tr>'+
-    '<tr><td>6</td><td>gripper</td><td>[-1, 1]</td><td>夹爪开合（正=开，负=关）</td></tr>'+
-    '</tbody></table>'+
     '<div class="card"><div class="card-label">🔑 动作空间的含义</div><p>LIBERO 使用的是<strong>末端执行器增量控制</strong>：每一步预测的是末端位姿的<strong>变化量</strong>（而非绝对位置）。这和 OpenVLA 原论文的动作表示完全一致——§1.5 讲的 256 桶离散化，离散化的就是这 7 个维度的增量值。</p></div>'+
     '</section>'+
+
+    '<section><h4>2.4.5 动手：跑通 LIBERO 随机动作 Demo</h4>'+
+    '<p>运行 <code>codes/step2_sim/run_libero_demo.py</code>（80 步随机动作），下面是实际运行中截取的 <strong>agentview 观测帧</strong>：</p>'+
+    '<div class="practice-box"><div class="pb-title">🧪 LIBERO 仿真验证实验</div><ol class="steps"><li><strong>进入目录</strong>：<code>cd /develop/vla-course/codes</code></li><li><strong>激活环境</strong>：<code>source .venv/bin/activate</code></li><li><strong>运行</strong>：<code>python step2_sim/run_libero_demo.py</code></li><li><strong>查看输出</strong>：脚本自动保存 5 帧观测截图到 <code>step2_sim/_screenshots/</code></li></ol></div>'+
+    '<div style="display:flex;flex-wrap:wrap;gap:8px;margin:16px 0">'+
+      '<div style="flex:1;min-width:140px;text-align:center">'+
+        '<img src="figs/libero_step_000.png" alt="LIBERO Step 0" style="width:100%;border-radius:6px;box-shadow:var(--shadow-sm)">'+
+        '<span style="font-size:.7rem;color:var(--muted)">① Step 0 — 初始场景</span>'+
+      '</div>'+
+      '<div style="flex:1;min-width:140px;text-align:center">'+
+        '<img src="figs/libero_step_020.png" alt="LIBERO Step 20" style="width:100%;border-radius:6px;box-shadow:var(--shadow-sm)">'+
+        '<span style="font-size:.7rem;color:var(--muted)">② Step 20</span>'+
+      '</div>'+
+      '<div style="flex:1;min-width:140px;text-align:center">'+
+        '<img src="figs/libero_step_040.png" alt="LIBERO Step 40" style="width:100%;border-radius:6px;box-shadow:var(--shadow-sm)">'+
+        '<span style="font-size:.7rem;color:var(--muted)">③ Step 40</span>'+
+      '</div>'+
+      '<div style="flex:1;min-width:140px;text-align:center">'+
+        '<img src="figs/libero_step_060.png" alt="LIBERO Step 60" style="width:100%;border-radius:6px;box-shadow:var(--shadow-sm)">'+
+        '<span style="font-size:.7rem;color:var(--muted)">④ Step 60</span>'+
+      '</div>'+
+      '<div style="flex:1;min-width:140px;text-align:center">'+
+        '<img src="figs/libero_step_080.png" alt="LIBERO Step 80" style="width:100%;border-radius:6px;box-shadow:var(--shadow-sm)">'+
+        '<span style="font-size:.7rem;color:var(--muted)">⑤ Step 80</span>'+
+      '</div>'+
+    '</div>'+
+    '<div class="card"><div class="card-label">📸 观测帧说明</div><p>以上 5 帧来自 <strong>pick up the black bowl between the plate and the ramekin and place it on the plate</strong> 任务。场景包含 Panda 机械臂（右）、桌面物品（碗、盘子、烤碗、饼干）和固定顶视角相机。随机动作下机械臂在桌面上方抖动——第 3 章用 OpenVLA 替换随机动作后，机械臂将看懂语言指令并尝试完成抓取。</p></div>'+
+    '</section>'
+
 
     '<section><h3>2.5 第一个 VLA 推理 Demo</h3>'+
     '<p>安装完环境后，跑通一个最小化的 VLA 推理流程——用 OpenVLA 在 LIBERO-Spatial 上做一个零样本推理：</p>'+

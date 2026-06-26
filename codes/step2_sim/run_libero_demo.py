@@ -11,20 +11,26 @@
 
 输出：
     step2_sim/_screenshots/libero_step_*.png
+
+注意：首次运行需下载 LIBERO 资产（~586文件），请确保代理可用。
 """
 
 import os
 import numpy as np
 from PIL import Image
-from libero.libero import benchmark
+from libero.libero import benchmark, get_libero_path
 from libero.libero.envs import TASK_MAPPING
 
 # ── 从 benchmark 获取任务信息 ──
 benchmark_dict = benchmark.get_benchmark_dict()
 task_suite = benchmark_dict["libero_spatial"]()
 task = task_suite.get_task(0)
-TASK_BDDL = task.bddl_file.replace(".bddl", "")
+TASK_BDDL_NAME = task.bddl_file  # 例如 "pick_up_xxx.bddl"
 TASK_LANG = task.language
+
+# ── 拼接完整 BDDL 路径 ──
+BDDL_DIR = os.path.join(get_libero_path("bddl_files"), "libero_spatial")
+TASK_BDDL_PATH = os.path.join(BDDL_DIR, TASK_BDDL_NAME)
 
 
 def main():
@@ -36,13 +42,14 @@ def main():
     os.makedirs(out_dir, exist_ok=True)
 
     # 1. 任务信息
-    print(f"\n[1/4] 任务: {TASK_BDDL[:60]}...")
+    task_short = TASK_BDDL_NAME.replace(".bddl", "")[:60]
+    print(f"\n[1/4] 任务: {task_short}...")
     print(f"  语言指令: {TASK_LANG}")
 
     # 2. 创建仿真环境
     print("\n[2/4] 创建仿真环境...")
     env = TASK_MAPPING["libero_tabletop_manipulation"](
-        bddl_file_name=TASK_BDDL,
+        bddl_file_name=TASK_BDDL_PATH,
         robots=["Panda"],
         has_offscreen_renderer=True,
         has_renderer=False,
@@ -65,8 +72,8 @@ def main():
     capture_steps = [20, 40, 60, 80]
 
     for step in range(1, 81):
-        action = np.random.uniform(-0.1, 0.1, 7)
-        action[6] = 1.0
+        action = np.random.uniform(-0.1, 0.1, 8)
+        action[-1] = 1.0
         obs, reward, done, info = env.step(action)
 
         if step in capture_steps:
