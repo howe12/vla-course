@@ -371,6 +371,34 @@ function r_ch2(area,ch){
     '<pre><code>python -c "import mujoco; print(mujoco.__version__)"</code></pre>'+
     '</section>'+
 
+    '<section><h3>2.2.5 动手：加载机械臂 + 模拟 VLA 控制</h3>'+
+    '<p>在装 LIBERO 之前，先用课程自带的 6-DOF 机械臂模型跑通一个完整的仿真闭环：</p>'+
+    '<div class="practice-box"><div class="pb-title">🧪 第一个仿真实验：看机械臂动起来</div><ol class="steps"><li><strong>确认 MuJoCo</strong>：<code>python3 -c "import mujoco; print(mujoco.__version__)"</code></li><li><strong>启动图形仿真</strong>：<code>cd /develop/vla-course/codes && uv run python step2_sim/sim_vla_arm.py</code></li><li><strong>无头模式</strong>（SSH/服务器）：<code>uv run python step2_sim/sim_vla_arm.py --headless</code></li><li><strong>观察</strong>：图形模式下，MuJoCo Viewer 弹出，机械臂按正弦轨迹摆动，末端逐渐靠近红色目标方块</li></ol></div>'+
+    '<p>这个脚本模拟了 VLA 的完整控制循环：</p>'+
+    '<pre><code>相机图像 ──→ [VLA 模型] ──→ 目标关节角\n    ↑                            ↓\n    └──── 末端位置 ←── [MuJoCo PD 控制]</code></pre>'+
+    '<p>目前 VLA 输出用正弦轨迹 mock。第 3 章会把 mock 替换为 OpenVLA 7B 的真实推理——到那时，你看到的机械臂运动就是大模型"看懂场景后做出的决策"。</p>'+
+    '<div style="display:flex;flex-wrap:wrap;gap:8px;margin:16px 0">'+
+      '<div style="flex:1;min-width:140px;text-align:center">'+
+        '<img src="figs/sim_pose0_start.png" alt="初始姿态" style="width:100%;border-radius:6px;box-shadow:var(--shadow-sm)">'+
+        '<span style="font-size:.7rem;color:var(--muted)">① 初始姿态（竖直）</span>'+
+      '</div>'+
+      '<div style="flex:1;min-width:140px;text-align:center">'+
+        '<img src="figs/sim_pose1_rotate.png" alt="基座旋转" style="width:100%;border-radius:6px;box-shadow:var(--shadow-sm)">'+
+        '<span style="font-size:.7rem;color:var(--muted)">② 基座旋转 + 肩部下压</span>'+
+      '</div>'+
+      '<div style="flex:1;min-width:140px;text-align:center">'+
+        '<img src="figs/sim_pose2_reach.png" alt="前伸" style="width:100%;border-radius:6px;box-shadow:var(--shadow-sm)">'+
+        '<span style="font-size:.7rem;color:var(--muted)">③ 肩肘弯折前伸</span>'+
+      '</div>'+
+      '<div style="flex:1;min-width:140px;text-align:center">'+
+        '<img src="figs/sim_pose3_target.png" alt="接近目标" style="width:100%;border-radius:6px;box-shadow:var(--shadow-sm)">'+
+        '<span style="font-size:.7rem;color:var(--muted)">④ 末端接近目标方块</span>'+
+      '</div>'+
+    '</div>'+
+    '<div class="card"><div class="card-label">📸 姿态说明</div><p>以上 4 帧来自 <code>sim_vla_arm.py</code> 的实际运行截图。机械臂从初始竖直姿态（①）→ 基座旋转加肩部下压（②）→ 肘部弯折前伸（③）→ 末端到达目标方块附近（④），垂直位移约 70 cm。当前用正弦轨迹驱动——第 3 章替换为 OpenVLA 推理后，同样的机械臂将根据语言指令做出有目的性的动作。</p></div>'+
+    '</section>'+
+
+
     '<section><h3>2.3 LIBERO 基准测试</h3>'+
     '<p><strong>LIBERO</strong> 是 Stanford 等机构联合发布的机器人操作基准，包含 130 个标准化任务，分为 4 个子集：</p>'+
     '<table><thead><tr><th>子集</th><th>任务数</th><th>考察能力</th></tr></thead><tbody>'+
