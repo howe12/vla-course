@@ -513,20 +513,20 @@ function r_ch2(area,ch){
     '<p>目前 VLA 输出用正弦轨迹 mock。第 3 章会把 mock 替换为 OpenVLA 7B 的真实推理——到那时，你看到的机械臂运动就是大模型"看懂场景后做出的决策"。</p>'+
     '<div style="display:flex;flex-wrap:wrap;gap:8px;margin:16px 0">'+
       '<div style="flex:1;min-width:140px;text-align:center">'+
-        '<img src="figs/sim_step000.png" alt="Step 0" style="width:100%;border-radius:6px;box-shadow:var(--shadow-sm)">'+
-        '<span style="font-size:.7rem;color:var(--muted)">Step 0: 初始姿态</span>'+
+        '<img src="figs/sim_pose0_start.png" alt="初始姿态" style="width:100%;border-radius:6px;box-shadow:var(--shadow-sm)">'+
+        '<span style="font-size:.7rem;color:var(--muted)">① 初始姿态（竖直）</span>'+
       '</div>'+
       '<div style="flex:1;min-width:140px;text-align:center">'+
-        '<img src="figs/sim_step060.png" alt="Step 60" style="width:100%;border-radius:6px;box-shadow:var(--shadow-sm)">'+
-        '<span style="font-size:.7rem;color:var(--muted)">Step 60: 基座旋转</span>'+
+        '<img src="figs/sim_pose1_rotate.png" alt="基座旋转" style="width:100%;border-radius:6px;box-shadow:var(--shadow-sm)">'+
+        '<span style="font-size:.7rem;color:var(--muted)">② 基座旋转 + 肩部下压</span>'+
       '</div>'+
       '<div style="flex:1;min-width:140px;text-align:center">'+
-        '<img src="figs/sim_step120.png" alt="Step 120" style="width:100%;border-radius:6px;box-shadow:var(--shadow-sm)">'+
-        '<span style="font-size:.7rem;color:var(--muted)">Step 120: 肩肘弯折</span>'+
+        '<img src="figs/sim_pose2_reach.png" alt="前伸" style="width:100%;border-radius:6px;box-shadow:var(--shadow-sm)">'+
+        '<span style="font-size:.7rem;color:var(--muted)">③ 肩肘弯折前伸</span>'+
       '</div>'+
       '<div style="flex:1;min-width:140px;text-align:center">'+
-        '<img src="figs/sim_step180.png" alt="Step 180" style="width:100%;border-radius:6px;box-shadow:var(--shadow-sm)">'+
-        '<span style="font-size:.7rem;color:var(--muted)">Step 180: 末端接近目标</span>'+
+        '<img src="figs/sim_pose3_target.png" alt="接近目标" style="width:100%;border-radius:6px;box-shadow:var(--shadow-sm)">'+
+        '<span style="font-size:.7rem;color:var(--muted)">④ 末端接近目标方块</span>'+
       '</div>'+
     '</div>'+
     '<div class="card"><div class="card-label">📁 模型文件</div><p>机械臂模型在 <code>models/widowx_arm.xml</code>。它是一个 6-DOF 臂（基座旋转 + 肩/肘 + 腕x3 + 夹爪），带桌面、红色目标方块和固定相机。所有课程仿真都基于这个模型。<strong>用文本编辑器打开它</strong>——你能看到 body 的嵌套层级、joint 的旋转轴、actuator 的 PD 参数。</p></div>'+
