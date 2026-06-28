@@ -123,12 +123,23 @@ def main():
         ).to(DEVICE, dtype=torch.float16 if DEVICE == "cuda" else torch.float32)
 
         with torch.no_grad():
-            action = model.predict_action(**inputs, do_sample=False)
+            # 使用 token 解码方式（兼容所有 unnorm_key）
+            generated_ids = model.generate(
+                **inputs,
+                max_new_tokens=7,
+                do_sample=False,
+            )
 
-        # action 是 7 维 numpy 数组 [dx, dy, dz, droll, dpitch, dyaw, gripper]
-        # 需要补 1 维 (保留位) → 8 维
+        # --- Token → 连续动作 ---
+        NUM_BINS = 256
+        BIN_CENTERS = np.linspace(-1.0, 1.0, NUM_BINS)
+        new_tokens = generated_ids[0, inputs["input_ids"].shape[1] :]
+        action = np.array(
+            [BIN_CENTERS[min(new_tokens[i].item(), NUM_BINS - 1)] for i in range(7)]
+        )
+
+        # 补 1 维 (保留位) → 8 维
         action_8d = np.append(action, [0.0])
-
         # --- 执行动作 ---
         obs, reward, done, info = env.step(action_8d)
 
