@@ -158,6 +158,11 @@ def run_task(model, processor, task, task_id):
         # 夹爪规范化：取反 + 二值化
         action = normalize_gripper(action, binarize=True)
 
+        # OSC 控制器期望 [-1,+1] 归一化动作，但 predict_action 输出物理值
+        # output_max = [0.05, 0.05, 0.05, 0.5, 0.5, 0.5] → 归一化到 [-1,+1]
+        OSC_POS_MAX = np.array([0.05, 0.05, 0.05, 0.5, 0.5, 0.5])
+        action[:6] = np.clip(action[:6] / OSC_POS_MAX, -1.0, 1.0)
+
         obs, reward, done, info = env.step(action.tolist())
 
         # LIBERO 成功检测
