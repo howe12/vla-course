@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Step 3 实验：OpenVLA 7B + LIBERO-Spatial 零样本推理（官方对齐版）
+"""Step 3 实验：OpenVLA 7B + LIBERO-Spatial 微调模型推理（官方对齐版）
 
 严格对齐 OpenVLA 官方 run_libero_eval.py：
 - OffScreenRenderEnv（OSC_POSE 控制器）
@@ -40,8 +40,8 @@ os.makedirs(SCREENSHOT_DIR, exist_ok=True)
 
 def load_model():
     """加载 OpenVLA 7B 模型和处理器"""
-    LOCAL_MODEL_PATH = "/root/gpufree-data/models/openvla-7b"
-    MODEL_ID = LOCAL_MODEL_PATH if os.path.isdir(LOCAL_MODEL_PATH) else "openvla/openvla-7b"
+    LOCAL_MODEL_PATH = "/root/gpufree-data/models/openvla-7b-finetuned-libero-spatial"
+    MODEL_ID = LOCAL_MODEL_PATH if os.path.isdir(LOCAL_MODEL_PATH) else "openvla/openvla-7b-finetuned-libero-spatial"
 
     print(f"[1/3] 加载 OpenVLA 7B 模型...")
     print(f"  路径: {MODEL_ID}  |  设备: {DEVICE}")
@@ -57,31 +57,18 @@ def load_model():
     return model, processor
 
 
-def get_image(obs, resize_size=224):
-    """
-    图像预处理（对齐官方 OpenVLA 评估管道）：
-    1. 提取 agentview_image
-    2. 旋转 180 度（匹配训练预处理）
-    3. JPEG 编解码（匹配 RLDS 数据管道）
-    4. 缩放到模型输入尺寸
-    """
+def get_image(obs, resize_size=224, center_crop=False):
     img = obs["agentview_image"]
-    img = img[::-1, ::-1]  # 180° 旋转
-
-    # JPEG 编解码
-    try:
-        import tensorflow as tf
-        img = tf.image.encode_jpeg(img).numpy()
-        img = tf.io.decode_image(img, expand_animations=False, dtype=tf.uint8).numpy()
-        if resize_size:
-            img = tf.image.resize(img, (resize_size, resize_size), method="lanczos3", antialias=True)
-            img = tf.cast(tf.clip_by_value(tf.round(img), 0, 255), tf.uint8).numpy()
-    except ImportError:
-        # Fallback: simple resize
+    if center_crop:
+        # 256→224 center crop（对齐官方评估管道）
+        h, w = img.shape[:2]
+        crop_size = min(h, w)
+        start_h = (h - crop_size) // 2
+        start_w = (w - crop_size) // 2
+        img = img[start_h:start_h+crop_size, start_w:start_w+crop_size]
+    if resize_size:
         img = np.array(Image.fromarray(img).resize((resize_size, resize_size), Image.LANCZOS))
-
     return Image.fromarray(img).convert("RGB")
-
 
 def normalize_gripper(action, binarize=True):
     """
@@ -142,7 +129,7 @@ def run_task(model, processor, task, task_id):
     prompt = f"In: What action should the robot take to {task_description}?\nOut:"
 
     for step in range(MAX_STEPS):
-        image = get_image(obs, resize_size=224)
+        image = get_image(obs, resize_size=224, center_crop=True)
 
         inputs = processor(
             images=image, text=prompt, return_tensors="pt"
@@ -151,17 +138,16 @@ def run_task(model, processor, task, task_id):
         with torch.no_grad():
             action = model.predict_action(
                 **inputs,
-                unnorm_key="bridge_orig",  # OpenVLA 默认无 LIBERO norm_stats
+                unnorm_key="libero_spatial",  # 微调模型自带 libero_spatial norm_stats
                 do_sample=False,
             )
 
         # 夹爪规范化：取反 + 二值化
         action = normalize_gripper(action, binarize=True)
-
-        # OSC 控制器期望 [-1,+1] 归一化动作，但 predict_action 输出物理值
-        # output_max = [0.05, 0.05, 0.05, 0.5, 0.5, 0.5] → 归一化到 [-1,+1]
+# OSC 归一化：模型输出物理值(米/弧度) → OSC [-1,+1]
         OSC_POS_MAX = np.array([0.05, 0.05, 0.05, 0.5, 0.5, 0.5])
         action[:6] = np.clip(action[:6] / OSC_POS_MAX, -1.0, 1.0)
+
 
         obs, reward, done, info = env.step(action.tolist())
 
@@ -184,7 +170,7 @@ def run_task(model, processor, task, task_id):
 
 def main():
     print("=" * 60)
-    print("Step 3 实验：OpenVLA 7B + LIBERO-Spatial 零样本推理")
+    print("Step 3 实验：OpenVLA 7B + LIBERO-Spatial 微调模型推理")
     print("         10 任务评估 + 截图（官方管道对齐）")
     print("=" * 60)
 
