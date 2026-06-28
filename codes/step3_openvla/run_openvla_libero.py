@@ -161,7 +161,7 @@ def run_task(model, processor, task, task_id):
         obs, reward, done, info = env.step(action.tolist())
 
         # LIBERO 成功检测
-        if step > 0 and env._check_success():
+        if step > 0 and env.check_success():
             success = True
             screenshots["final"] = save_screenshot(obs, task_id, step)
             break
