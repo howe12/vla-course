@@ -332,7 +332,8 @@ function r_ch1(area,ch){
     '<div class="card"><div class="card-label">🔑 一句话定义</div><h5>VLA：图像 + 语言指令 → 动作序列</h5><p>VLM 解决"感知-理解"问题（让机器"看懂"），VLA 解决"感知-理解-执行"问题（让机器"看懂并动手"）。VLA 可以看作在 VLM 的能力基础上，增加了<strong>动作预测</strong>这一关键能力。</p></div>'+
     '<div class="formula formula-block">p(<b>a</b><sub>1:T</sub> | <b>X</b><sub>img</sub>, <b>X</b><sub>text</sub>) = &#x220F;<sub>t=1</sub><sup>T</sup> p(<b>a</b><sub>t</sub> | <b>X</b><sub>img</sub>, <b>X</b><sub>text</sub>, <b>a</b><sub>1:t-1</sub>)</div>'+
     '<p>其中 <b>a</b><sub>t</sub> 为 t 时刻机器人执行的动作，<b>X</b><sub>img</sub> 为视觉观察，<b>X</b><sub>text</sub> 为语言指令。这是一个自回归生成过程——每一步的动作预测都依赖于之前已经执行的动作历史。</p>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>1.2 VLA vs VLM vs VLN vs 模仿学习</h3>'+
     '<p>四种让机器人"听懂人话"的范式，本质区别在于<strong>输出模态</strong>和<strong>泛化方式</strong>：</p>'+
@@ -360,7 +361,8 @@ function r_ch1(area,ch){
     '<tr><td>2025</td><td><strong>SmolVLA</strong></td><td>HuggingFace</td><td>450M 参数，消费级 GPU 可训练</td></tr>'+
     '</tbody></table>'+
     '<div class="card"><div class="card-label">📈 趋势</div><p>从大而全（RT-2 55B）→ 开源可用（OpenVLA 7B）→ 极致轻量（SmolVLA 450M）。动作生成从<strong>离散分类</strong>（RT-1/RT-2）→ <strong>连续回归+扩散</strong>（π0），精度和泛化能力持续提升。</p></div>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>1.4 VLA 核心架构：三模态输入</h3>'+
     '<p>VLA 同时接收<strong>视觉观察</strong>、<strong>语言指令</strong>和<strong>机器人状态（可选）</strong>三种输入：</p>'+
@@ -378,7 +380,8 @@ function r_ch1(area,ch){
     '<p>部分 VLA 还会接收本体状态：关节角度 <b>q</b>、末端位姿 <b>p</b>、夹爪开合 g。三者拼接后送入 LLM 统一处理：</p>'+
     '<div class="formula formula-block"><b>F</b><sub>combined</sub> = [<b>V</b>; <b>L</b>; <b>S</b>]</div>'+
     '<pre><code>                     ┌──────────────────────┐\n图像输入 → [视觉编码器] → 视觉 Token 序列 V ─┐\n                                            │\n文本指令 → [LLM Encoder] → 语言 Token ──────┼→ [LLM 主干 Transformer] → 动作 Token\n                                            │\n本体感知 → [状态编码器] → 状态 Token S ─────┘\n                                            ↓\n                               [动作预测头: D 个 256 类分类头]\n                                            ↓\n                                     离散动作索引 → [动作还原] → 连续动作 a<sub>t</sub></code></pre>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>1.5 动作空间离散化</h3>'+
     '<p>VLA 的一个核心挑战是：<strong>如何将连续的动作空间与基于 Token 的 LLM 架构融合？</strong></p>'+
@@ -394,7 +397,8 @@ function r_ch1(area,ch){
     '<tr><td><strong>对数分桶</strong></td><td>取对数后均匀分桶</td><td>覆盖大范围动作</td><td>不适合均匀分布</td></tr>'+
     '</tbody></table>'+
     '<div class="card"><div class="card-label">🔑 离散化的核心优势</div><ol style="padding-left:1.5em;line-height:2"><li><strong>与 LLM 统一</strong>：动作 Token 直接复用语言 Token 的建模框架</li><li><strong>语义化</strong>：不同桶可能学到有意义的语义（如"左转"、"右转"）</li><li><strong>多模态建模</strong>：softmax 天然支持多峰动作分布</li></ol></div>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>1.6 动作预测头设计</h3>'+
     '<p>动作预测头是 VLA 架构中负责将 LLM 表示转换为具体动作输出的模块。三种常见设计：</p>'+
@@ -406,7 +410,8 @@ function r_ch1(area,ch){
     '<p>以 RT-2 为例，其动作预测头输出格式为：</p>'+
     '<pre><code>[STOP Token] [Action Dim 1] [Action Dim 2] ... [Action Dim D]\n   1 Token      256 类分类      256 类分类          256 类分类</code></pre>'+
     '<p>每个动作维度对应一个独立的 256 分类头，最终选择概率最高的桶作为该维度的动作预测。</p>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>1.7 VLA 训练三阶段</h3>'+
     '<p>VLA 训练通常分为三个阶段，每个阶段的数据和目标各不相同：</p>'+
@@ -417,7 +422,8 @@ function r_ch1(area,ch){
     '</tbody></table>'+
     '<pre><code>┌─────────────────────────────────────────────────────┐\n│                    预训练阶段                        │\n│  数据: 图像-文本对（LAION-2B 等）                    │\n│  目标: 视觉-语言基础对齐                             │\n│  参数: 对齐模块训练，VL 编码器冻结                    │\n└─────────────────────────────────────────────────────┘\n                          ↓\n┌─────────────────────────────────────────────────────┐\n│                   指令微调阶段                        │\n│  数据: 视觉-语言指令数据（LLaVA-Instruct 等）         │\n│  目标: 指令跟随、任务理解                             │\n│  参数: 对齐模块 + 指令遵循训练                        │\n└─────────────────────────────────────────────────────┘\n                          ↓\n┌─────────────────────────────────────────────────────┐\n│                   动作微调阶段                        │\n│  数据: 机器人演示轨迹（图像 + 指令 + 动作标签）        │\n│  目标: 动作预测能力注入                              │\n│  参数: 视觉编码器微调 + LLM(LoRA) + 动作预测头        │\n└─────────────────────────────────────────────────────┘\n                          ↓\n                      完整 VLA 模型</code></pre>'+
     '<div class="callout warn"><div class="lb">⚠️ 动作微调是关键</div><p style="margin:0">前两阶段本质上和训练一个 VLM 没有区别。第 3 阶段才是 VLA 与 VLM 的<strong>本质分水岭</strong>——模型第一次见到"图像 + 指令 → 动作"的配对数据。OpenVLA 采用的策略是：<strong>视觉编码器全量微调 + LLM 使用 LoRA + 动作头全量训练</strong>。</p></div>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>1.8 连续动作 vs 离散动作</h3>'+
     '<p>VLA 在处理动作空间时面临一个根本性选择：</p>'+
@@ -429,7 +435,8 @@ function r_ch1(area,ch){
     '<tr><td><strong>代表工作</strong></td><td>ACT, π0</td><td>RT-2, OpenVLA</td></tr>'+
     '</tbody></table>'+
     '<div class="card"><div class="card-label">📈 行业趋势</div><p>2025 年后，<strong>扩散式连续动作生成</strong>（π0 路线）正在成为主流。它兼具连续动作的高精度和概率建模的多峰能力，是本课程第 5 章的重点。</p></div>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>1.9 实时性要求与推理优化</h3>'+
     '<p>机器人控制对实时性有严格要求，VLA 推理延迟是实际部署中的关键瓶颈：</p>'+
@@ -447,7 +454,8 @@ function r_ch1(area,ch){
     '</tbody></table>'+
     '<h4>五大优化手段</h4>'+
     '<ol style="padding-left:1.5em;line-height:2.2"><li><strong>模型量化</strong>：INT8 降 30-40% 延迟，INT4 降 50-60%，可运行于消费级 GPU</li><li><strong>模型蒸馏</strong>：大模型 Teacher → 小模型 Student，OpenVLA-3B 比 7B 快 2 倍</li><li><strong>推测解码</strong>：小模型预测动作，大模型验证</li><li><strong>异步执行</strong>：控制与推理解耦，MPC 与 VLA 协同</li><li><strong>动作缓存</strong>：静态场景缓存预测，避免重复推理</li></ol>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>1.10 本课程选型理由</h3>'+
     '<p>本课程围绕三款 VLA 模型展开，选择逻辑如下：</p>'+
@@ -457,11 +465,13 @@ function r_ch1(area,ch){
     '<tr><td><strong>π0</strong></td><td>~3B</td><td>扩散 VLA 代表，SOTA 性能，理解新范式</td><td>第 5 章 · L40 训练</td></tr>'+
     '</tbody></table>'+
     '<div class="card"><div class="card-label">🔑 学习路线</div><p>先用 OpenVLA 理解 VLA 推理（第 3 章）→ 用 SmolVLA 上手训练（第 4 章）→ 用 π0 接触前沿扩散范式（第 5 章）→ 云端训练实战（第 6 章）→ 真机部署（第 7 章）。<strong>从推理到训练，从仿真到真机，从经典到前沿。</strong></p></div>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>1.11 VLA 的能力边界</h3>'+
     '<div class="callout warn"><div class="lb">⚠️ 当前 VLA 还做不到的</div><ul style="margin:8px 0 0 1.2em;line-height:1.9"><li><strong>长时序规划</strong>：难以处理超过 20 步的复杂任务链</li><li><strong>精确力控</strong>：插拔 USB、拧螺丝等需要毫牛级力觉的任务</li><li><strong>新物体泛化</strong>：没见过形状的物体仍会失败，域外泛化是开放问题</li><li><strong>高速实时控制</strong>：7B+ 模型推理 >1 秒，不适合 50Hz+ 的控制回路</li><li><strong>安全性保证</strong>：模型可能输出危险的超界动作，需要工程防护</li></ul></div>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>📝 本章小结</h3><div class="card"><div class="card-label">带走这几条</div><ol style="padding-left:1.5em;line-height:2.1"><li><strong>VLA = 视觉编码器 + LLM + 动作头</strong>，端到端从像素预测关节角</li><li><strong>VLA ≠ VLM</strong>：VLM 输出文本，VLA 输出动作——多了一个"动手"的维度</li><li><strong>动作离散化</strong>：RT-2 方案将连续动作映射到 256 个 Token，与 LLM 统一</li><li><strong>三阶段训练</strong>：预训练（对齐）→ 指令微调（理解）→ 动作微调（执行）</li><li><strong>从 55B 到 450M</strong>：模型越来越小，推理越来越快，部署越来越可行</li><li><strong>扩散 VLA</strong>（π0）正在成为新一代主流，兼具精度和多峰建模能力</li></ol></div>'+
 
@@ -470,14 +480,16 @@ function r_ch1(area,ch){
     '<div class="practice-box"><div class="pb-title"> 实验 1.1：动作离散化（256 桶方案）</div><ol class="steps"><li><strong>运行</strong>：<code>cd /develop/vla-course/codes && source .venv/bin/activate && python step1_basics/action_discretize.py</code></li><li><strong>观察</strong>：7 维动作 256 桶索引 恢复值，误差 < 0.008</li><li><strong>修改</strong>：改 NUM_BINS=128 或 512，观察精度变化</li></ol></div>'+
     '<details><summary>展开核心输出</summary><div class="details-body"><pre><code>动作维度: 7  (x, y, z, roll, pitch, yaw, gripper)\n值域: [-1.0, 1.0]\n桶数: 256\n分辨率: 0.00784\n\n      维度       连续值     桶索引       恢复值          误差\n-------------------------------------------------------\n      x    0.3500     172    0.3490     0.00098\n      y   -0.1200     112   -0.1216     0.00157\n      z    0.0800     137    0.0745     0.00549\n   roll    0.0000     127   -0.0039     0.00392\n  pitch   -0.0500     121   -0.0510     0.00098\n    yaw    0.0200     130    0.0196     0.00039\n gripper    1.0000     255    1.0000     0.00000</code></pre></div></details>'+
     '<div class="card"><div class="card-label"> 学会</div><ul style="line-height:2.0;padding-left:1.2em"><li>连续值 离散桶的公式: <code>bucket = (val+1)/2 255</code></li><li>离散化精度 = 2/255  0.0078，对机械臂控制足够</li><li>256 = 2  1 个字节刚好装下 1 个 token ID</li></ul></div>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>1.13  动手实验 2：Token 编码解码</h3>'+
     '<p>理解 OpenVLA 如何把 7 维动作编成 8 个 token ID，LLM 自回归生成后解码回动作：</p>'+
     '<div class="practice-box"><div class="pb-title"> 实验 1.2：动作  Token ID 编码解码</div><ol class="steps"><li><strong>运行</strong>：<code>cd /develop/vla-course/codes && source .venv/bin/activate && python step1_basics/token_encode_decode.py</code></li><li><strong>观察</strong>：7 维动作 1792 个 token ID LLM 生成 解码回动作</li><li><strong>修改</strong>：改 action 数组的值，观察 token ID 如何变化</li></ol></div>'+
     '<details><summary>展开核心输出</summary><div class="details-body"><pre><code>输入动作: [0.35, -0.12, 0.78, -0.05, 0.0, 0.02, 0.5]\n\n      维度       连续值     桶索引    Token ID   ID//256    ID%256\n-----------------------------------------------------------------\n      x    0.3500     172         172         0       172\n      y   -0.1200     112         368         1       112\n      z    0.7800     226         738         2       226\n   roll   -0.0500     121         889         3       121\n  pitch    0.0000     127        1151         4       127\n    yaw    0.0200     130        1410         5       130\n gripper    0.5000     191        1727         6       191\n\nToken ID = dim  256 + bucket\n  解码: dim = ID // 256, bucket = ID % 256\n  恢复误差 < 0.008</code></pre></div></details>'+
     '<div class="card"><div class="card-label"> 学会</div><ul style="line-height:2.0;padding-left:1.2em"><li><strong>Token ID = dim  256 + bucket</strong> — 7 维动作编成 7 个整数</li><li><strong>ID // 256 = 维度，ID % 256 = 桶</strong> — 数学上可逆，无信息丢失（精度损失除外）</li><li>LLaMA 词汇表从 ~32000 扩展到 ~33792，加入 1792 个动作 token</li><li>第 8 个 token 是停止符（EOS），告诉 LLM 动作输出完毕</li></ul></div>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>📝 本章小结</h3><div class="card"><div class="card-label">带走这几条</div><ol style="padding-left:1.5em;line-height:2.1"><li><strong>VLA = 视觉 + 语言 + 动作</strong>的统一端到端模型，区别于 VLM（只输出文本）和 VLN（只做导航）</li><li><strong>三模态架构</strong>：视觉编码器 → LLM 主干 → 动作预测头，是当前主流设计</li><li><strong>动作离散化</strong>：256 桶方案让连续动作和 LLM Token 统一，自回归生成</li><li><strong>技术演进</strong>：RT-1→RT-2→OpenVLA→π0，从闭源到开源、从巨型到可训</li><li><strong>连续 vs 离散</strong>：离散化方便复用 LLM 架构，连续动作需要专门的扩散/流匹配方案</li></ol></div>'+
 
@@ -503,7 +515,8 @@ function r_ch2(area,ch){
     '<pre><code>cd /develop/vla-course/codes\nuv venv\nsource .venv/bin/activate\nuv pip install mujoco</code></pre>'+
     '<p>验证安装：</p>'+
     '<pre><code>python -c "import mujoco; print(mujoco.__version__)"</code></pre>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>2.2.1  MuJoCo 入门实验 1：最简物理仿真</h3>'+
     '<p>理解 MuJoCo 的核心循环——30 行代码看小球自由落体：</p>'+
@@ -535,7 +548,8 @@ function r_ch2(area,ch){
       '</div>'+
     '</div>'+
     '<details><summary> 终端输出（点击展开）</summary><div class="details-body"><pre><code>模型有 7 个位置自由度, 6 个速度自由度\n物理步长 dt=0.0020s  重力 g=(0.0,0.0,-9.81)\n\n Step      time    ball_z     ball_vz\n---------------------------------------------\n    0    0.0020    1.5000     -0.0196\n   20    0.0420    1.4909     -0.4120\n   40    0.0820    1.4662     -0.8044\n   60    0.1220    1.4258     -1.1968\n   80    0.1620    1.3697     -1.5892\n  100    0.2020    1.2979     -1.9816\n  120    0.2420    1.2104     -2.3740\n  140    0.2820    1.1072     -2.7664\n  160    0.3220    0.9883     -3.1588\n  180    0.3620    0.8537     -3.5512\n\n 核心公式: 1 次 mj_step = 物理时间推进 0.002s</code></pre></div></details>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>2.2.2  MuJoCo 入门实验 2：关节控制</h3>'+
     '<p>理解 <code>ctrl</code>  <code>qpos</code> 的 PD 跟踪关系 VLA 如何驱动机械臂：</p>'+
@@ -588,14 +602,16 @@ function r_ch2(area,ch){
       '</div>'+
     '</div>'+
     '<div class="card"><div class="card-label">📸 姿态说明</div><p>以上 4 帧来自 <code>sim_vla_arm.py</code> 的实际运行截图。机械臂从初始竖直姿态（①）→ 基座旋转加肩部下压（②）→ 肘部弯折前伸（③）→ 末端到达目标方块附近（④），垂直位移约 70 cm。当前用正弦轨迹驱动——第 3 章替换为 OpenVLA 推理后，同样的机械臂将根据语言指令做出有目的性的动作。</p></div>'+
-    '</section>'++
+    '</section>'+
+
 
 
     '<section><h3>2.2.8  LIBERO 入门实验 1：任务浏览器</h3>'+
     '<p>探索 LIBERO 的 6 个子集 + 130 个任务 理解 VLA 考什么：</p>'+
     '<div class="practice-box"><div class="pb-title"> 实验 3：LIBERO 任务浏览器</div><ol class="steps"><li><strong>运行</strong>：<code>cd /develop/vla-course/codes && source .venv/bin/activate && python step2_sim/libero_task_explorer.py</code></li><li><strong>观察</strong>：6 个子集概览  Spatial 10 个任务的语言指令  单个任务的完整属性</li><li><strong>思考</strong>：为什么 VLA 评测需要这么多任务？一个任务不够吗？</li></ol></details>'+
     '<div class="card"><div class="card-label"> 学会</div><ul style="line-height:2.0;padding-left:1.2em"><li>LIBERO 有 4 个评测子集（Spatial/Object/Goal/100）+ 2 个训练子集</li><li>每个任务 = BDDL 场景描述 + 自然语言指令</li><li>观测空间包含 31 个 key：1 个图像 + 30 个本体/物体状态</li><li>动作空间 = 8 维（7 维末端增量 + gripper）</li></ul></div>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>2.2.9  LIBERO 入门实验 2：动作空间实验</h3>'+
     '<p>反复测试不同动作值，理解每维动作的含义和限幅机制：</p>'+
@@ -642,13 +658,15 @@ function r_ch2(area,ch){
     '<tr><td><strong>LIBERO-100</strong></td><td>100</td><td>综合评测（前三个的超集 + 更多任务）</td></tr>'+
     '</tbody></table>'+
     '<div class="card"><div class="card-label">🔑 为什么学 LIBERO？</div><p>OpenVLA 官方在 LIBERO 上评测，SmolVLA 论文也用它做对比实验。学会 LIBERO = 能和 SOTA 论文的表格直接对齐。你的模型在 LIBERO-Spatial 上跑到 80%，就能和 OpenVLA 原论文的数字比。</p></div>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>2.4 动手实操：跑通 LIBERO</h3>'+
 
     '<section><h4>2.4.1 安装 LIBERO</h4>'+
     '<pre><code>cd /develop/vla-course/codes\nsource .venv/bin/activate\n# 国内需走代理下载 HuggingFace 资产\nexport http_proxy=http://127.0.0.1:7897\nuv pip install libero</code></pre>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h4>2.4.5 动手：跑通 LIBERO 随机动作 Demo</h4>'+
     '<p>运行 <code>codes/step2_sim/run_libero_demo.py</code>（80 步随机动作），下面是实际运行中截取的 <strong>agentview 观测帧</strong>：</p>'+
@@ -676,14 +694,16 @@ function r_ch2(area,ch){
       '</div>'+
     '</div>'+
     '<div class="card"><div class="card-label">📸 观测帧说明</div><p>以上 5 帧来自 <strong>pick up the black bowl between the plate and the ramekin and place it on the plate</strong> 任务。脚本用<strong>大幅定向动作</strong>（而非随机抖动）驱动 Panda 机械臂完成一个模拟抓取序列：① 初始悬停 → ② 右移下降靠近桌面 → ③ 大幅左移横跨桌面 → ④ 前伸 + 夹爪闭合（模拟抓取）→ ⑤ 上提取物（模拟举起）。</p><p style="margin-top:8px"><strong>💡 顶视角局限</strong>：LIBERO 默认只有顶部固定相机（agentview），机械臂在画面中只占 ~12% 像素，因此缩略图看起来差异不大。<strong>请点击大图仔细观察机械臂的 XY 位置和夹爪开合状态。</strong>第 3 章用 OpenVLA 替换定向动作后，机械臂将根据语言指令自主完成真实抓取。</p></div>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>2.5 第一个 VLA 推理 Demo</h3>'+
     '<p>安装完环境后，跑通一个最小化的 VLA 推理流程——用 OpenVLA 在 LIBERO-Spatial 上做一个零样本推理：</p>'+
     '<div class="practice-box"><div class="pb-title">🧪 跑通第一个 VLA 仿真实验</div><ol class="steps"><li><strong>确认环境</strong>：<code>cd /develop/vla-course/codes && uv run python -c "import mujoco, libero; print(\'OK\')"</code></li><li><strong>创建脚本</strong>：在 <code>codes/step2_sim/</code> 下新建 <code>run_openvla.py</code>（见下方折叠面板）</li><li><strong>运行</strong>：<code>uv run python codes/step2_sim/run_openvla.py</code></li><li><strong>观察</strong>：终端打印每个 step 的预测动作和 gripper 状态</li></ol></div>'+
     '<details><summary>展开查看 run_openvla.py 完整代码</summary><div class="details-body"><pre><code>#!/usr/bin/env python3\n""""最小化 VLA 推理：OpenVLA + LIBERO-Spatial""""\nimport numpy as np\nfrom libero.libero import benchmark\n\n# 1. 加载 LIBERO 任务\nprint("加载 LIBERO-Spatial...")\nbenchmark_dict = benchmark.get_benchmark_dict()\ntask_suite = benchmark_dict["libero_spatial"]()\ntask = task_suite.get_task(0)\n\nprint(f"任务: {task.name}")\nprint(f"指令: {task.language_instruction}")\n\n# 2. 创建环境\nenv_args = {\n    "task": task,\n    "bddl_file": task.bddl_file,\n    "camera_heights": 224,\n    "camera_widths": 224,\n}\nenv = task_suite.get_env(task_id=0, env_args=env_args)\n\n# 3. 重置 → 推理循环\nobs = env.reset()\nprint(f"观测 shape: {obs.shape}  (应为 224,224,3)")\nprint(f"动作维度: {env.action_space.shape[0]}  (应为 7)")\n\n# 模拟 VLA 推理（实际模型加载见第 3 章）\nfor step in range(20):\n    # ── VLA 推理位置（第 3 章替换为真实模型）──\n    action = np.random.uniform(-0.1, 0.1, 7)\n    action[6] = 1.0  # gripper 保持张开\n\n    obs, reward, done, info = env.step(action)\n\n    if step % 5 == 0:\n        print(f"Step {step:3d} | 动作 Δxyz=({action[0]:+.3f},{action[1]:+.3f},{action[2]:+.3f}) | 夹爪={action[6]:.1f} | done={done}")\n\n    if done:\n        print(f"✅ 任务完成于 step {step}")\n        break\n\nprint("仿真结束。下一步：第 3 章加载真实 OpenVLA 模型替换随机动作。")</code></pre></div></details>'+
     '<p>这个脚本目前用随机动作占位。第 3 章会加载真实的 OpenVLA 7B 模型，把 <code>np.random.uniform</code> 替换为模型推理输出。</p>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>📝 本章小结</h3><div class="card"><div class="card-label">带走这几条</div><ol style="padding-left:1.5em;line-height:2.1"><li><strong>MuJoCo = 物理根基</strong>：mjModel 是图纸，mjData 是实时状态，mj_step 推进仿真</li><li><strong>LIBERO = VLA 考场</strong>：130 个标准任务，gym.Env 接口，OpenVLA 原生支持</li><li><strong>动作空间 = 7 维增量</strong>：Δx/Δy/Δz/Δroll/Δpitch/Δyaw + gripper，和 §1.5 的 256 桶离散化一一对应</li><li><strong>控制周期 = 20 Hz</strong>：VLA 推理 40ms → 25Hz，LIBERO 默认 20Hz 控制，二者匹配</li><li><strong>uv 管理依赖</strong>：项目级隔离，不污染系统 Python，不冲突 conda</li></ol></div>'+
 
@@ -716,7 +736,8 @@ function r_ch3(area,ch){
     '<tr><td><strong>开源</strong></td><td>✅ Apache 2.0</td><td>❌ 闭源</td></tr>'+
     '</tbody></table>'+
     '<div class="card"><div class="card-label">🔑 核心创新</div><p>OpenVLA 证明了<strong>开源 LLM（LLaMA 2）可以直接做 VLA 的基座</strong>，不需要 Google 的闭源模型。7B 参数经过 INT4 量化后仅需 ~5GB 显存，可以在消费级 GPU（RTX 3090/4060）上推理。这也是本课程选它的原因——<strong>你能在自己的硬件上跑起来</strong>。</p></div>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>3.2 OpenVLA 架构详解</h3>'+
     '<p>OpenVLA 遵循"视觉编码器 → 语言基座 → 动作头"三阶段范式，与 §1 讲的理论架构完全对应：</p>'+
@@ -730,7 +751,8 @@ function r_ch3(area,ch){
     '<tr><td><strong>语言基座</strong></td><td>LLaMA 2 7B</td><td>~6.7B</td><td>融合视觉+语言 → 自回归生成动作 token</td></tr>'+
     '<tr><td><strong>动作头</strong></td><td>7 个独立 Linear(4096→256)</td><td>~7M</td><td>每个 token → 256 桶概率 → 连续动作值</td></tr>'+
     '</tbody></table>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>3.3 模型下载与加载</h3>'+
     '<p>OpenVLA 模型托管在 HuggingFace，约 14GB（FP16）。国内下载可能需要镜像：</p>'+
@@ -740,7 +762,8 @@ function r_ch3(area,ch){
     '<h4>INT4 量化加载（消费级 GPU）</h4>'+
     '<pre><code># INT4 量化（需 ~8GB 显存，RTX 4060 / 3090 可用）\nfrom transformers import BitsAndBytesConfig\n\nquant_config = BitsAndBytesConfig(\n    load_in_4bit=True,\n    bnb_4bit_compute_dtype=torch.float16,\n    bnb_4bit_use_double_quant=True,\n)\n\nmodel = AutoModelForVision2Seq.from_pretrained(\n    model_id,\n    quantization_config=quant_config,\n    device_map="auto",\n    trust_remote_code=True,\n)</code></pre>'+
     '<div class="callout warn"><div class="lb">⚠️ 硬件要求</div><ul style="margin:8px 0 0 1.2em;line-height:1.9"><li><strong>FP16</strong>：~14GB 显存 — RTX 3090/4090, A100, L40</li><li><strong>INT8</strong>：~8GB 显存 — RTX 3070/4060, V100</li><li><strong>INT4</strong>：~5GB 显存 — RTX 2060/3060, T4</li><li><strong>CPU</strong>：理论上可行（~64GB RAM），推理速度 ~2-5 秒/步，不推荐</li></ul></div>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>3.4 推理管线：从像素到关节角</h3>'+
     '<p>一次完整的 OpenVLA 推理包含四个步骤。理解每一步，你就能在任何机器人平台上适配它：</p>'+
@@ -753,7 +776,8 @@ function r_ch3(area,ch){
     '<h4>步骤 4：Token → 连续动作</h4>'+
     '<pre><code># OpenVLA 的 action head 是 7 个 Linear(4096, 256) 分类头\n# generate 的输出 token ID 就是每个维度的桶索引 (0~255)\n\ndef decode_action(action_tokens, num_bins=256):\n    """\n    将离散 token 恢复为连续动作值\n    \n    action_tokens: (1, 8) — 最后一个是结束符，忽略\n    返回: (7,) numpy array, 范围 [-1, 1]\n    """\n    token_ids = action_tokens[0, :7].cpu().numpy()  # 取前 7 个\n    \n    actions = []\n    for tid in token_ids:\n        # 256 桶均匀分布在 [-1, 1]\n        bin_centers = np.linspace(-1.0, 1.0, num_bins)\n        action_value = bin_centers[tid % num_bins]\n        actions.append(action_value)\n    \n    return np.array(actions)</code></pre>'+
     '<div class="card"><div class="card-label">🔑 理解 token → 动作的映射</div><p>假设第 0 维（Δx）的 token ID = 150，256 桶均匀分布在 [-1, 1]：桶 150 的中心 = -1.0 + (150/255) × 2.0 = <strong>+0.176</strong>。这个值就是机械臂末端在 x 方向的增量。ID=0 → -1.0（向左最快），ID=255 → +1.0（向右最快），ID=128 → ~0.0（不动）。</p></div>'+
-    '</section>'++
+    '</section>'+
+
 
         '<section><h3>3.5 实操：完整部署与调试过程</h3>'+
     '<p>理论讲完了，该动手了。本节记录了一次<strong>真实的 VLA 部署过程</strong>——从选模型到跑通 10 个任务，中间经历了 <strong>8 轮调试、5 个关键修复</strong>。这些坑你大概率也会遇到。</p>'+
@@ -777,7 +801,8 @@ function r_ch3(area,ch){
     '</tbody></table>'+
     '<p>完整推理脚本：<a href="https://github.com/howe12/vla-course/blob/main/codes/step3_openvla/run_openvla_libero.py" target="_blank">GitHub</a></p>'+
 
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>3.6 调试复盘：8 轮尝试的教训</h3>'+
     '<p>这是本章<strong>最有价值的部分</strong>——8 轮失败的完整记录。</p>'+
@@ -803,7 +828,8 @@ function r_ch3(area,ch){
     '<div class="card"><div class="card-label">陷阱 3：基础设施</div>'+
     '<p>L40 PVC 50GB，两个模型 30GB。必须删旧下新。国内需 HF 镜像。离线部署需修复 <code>auto_map</code>。</p></div>'+
 
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>3.7 最终成果：10/10 全部通过</h3>'+
     '<p>所有修复就位后，L40 GPU 上 <strong>257 秒</strong>完成 10 个 LIBERO-Spatial 任务：</p>'+
@@ -822,7 +848,8 @@ function r_ch3(area,ch){
     '<figure style="flex:1;min-width:180px;margin:0"><img src="https://raw.githubusercontent.com/howe12/vla-course/main/codes/step3_openvla/_screenshots/task07_step000.png" style="width:100%;border-radius:6px" loading="lazy"><figcaption style="font-size:.75rem;color:#7f8c8d;text-align:center">Task 7: 碗在炉子上</figcaption></figure>'+
     '<figure style="flex:1;min-width:180px;margin:0"><img src="https://raw.githubusercontent.com/howe12/vla-course/main/codes/step3_openvla/_screenshots/task09_step000.png" style="width:100%;border-radius:6px" loading="lazy"><figcaption style="font-size:.75rem;color:#7f8c8d;text-align:center">Task 9: 碗在木柜上</figcaption></figure>'+
     '</div>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>3.8 部署检查清单</h3>'+
     '<div class="card"><div class="card-label">每次部署前逐项确认</div>'+
@@ -836,7 +863,8 @@ function r_ch3(area,ch){
     '<li>磁盘空间足够？</li>'+
     '<li>Python 3.10？</li>'+
     '</ol></div>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>3.9 理解输出：动作的 token 编码</h3>'+
     '<p>LLaMA 输出的 token ID 和 256 桶索引的关系：</p>'+
@@ -846,7 +874,8 @@ function r_ch3(area,ch){
     '<tr><td>32128</td><td>0 (x)</td><td>128</td><td>~0.0</td></tr>'+
     '<tr><td>32255</td><td>0 (x)</td><td>255</td><td>+1.0</td></tr>'+
     '</tbody></table>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>本章小结</h3><div class="card"><div class="card-label">带走这几条</div><ol style="padding-left:1.5em;line-height:2.1"><li><strong>OpenVLA = SigLIP ViT + LLaMA 2 7B + 7x256 动作头</strong></li><li><strong>基础模型 微调模型</strong>：Panda 机器人必须用 LIBERO 微调版</li><li><strong>三对齐</strong>：unnorm_key 对齐数据、图像预处理对齐训练、动作空间对齐控制器</li><li><strong>8 轮调试教会我们</strong>：一次只改一个变量，先对齐官方管道再调参</li></ol></div>'+
 
@@ -868,7 +897,8 @@ function r_ch4(area,ch){
     '<tr><td>RTX 4060</td><td>8 GB</td><td>❌ OOM</td><td>❌ OOM</td><td>自有硬件</td></tr>'+
     '</tbody></table>'+
     '<div class="card"><div class="card-label">🔑 L40 的三个关键优势</div><ol style="padding-left:1.5em;line-height:2"><li><strong>44GB 显存</strong>：正好卡在"够用"的甜点——SmolVLA 可以开大 batch，Pi0 刚好能跑</li><li><strong>海外机房</strong>：直连 HuggingFace / GitHub，不用配镜像、不用翻墙，模型下载满速</li><li><strong>性价比</strong>：$0.80/h 是 A100 的三分之一，训一晚上不到 $10</li></ol></div>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>4.2 SSH 连接与免密登录</h3>'+
     '<p>L40 的 SSH 连接信息（已记录在你的记忆中）：</p>'+
@@ -876,7 +906,8 @@ function r_ch4(area,ch){
     '<h4>推荐：配置 SSH config 别名</h4>'+
     '<pre><code># 在本机 ~/.ssh/config 中添加\nHost l40\n    HostName 120.209.70.195\n    Port 30334\n    User root\n    IdentityFile ~/.ssh/id_rsa\n\n# 之后只需\nssh l40</code></pre>'+
     '<div class="callout warn"><div class="lb">⚠️ L40 是手动开关机</div><p style="margin:0">L40 通过云控制台手动开关机，不使用时记得关机（按小时计费）。开机后需要等 1-2 分钟系统启动。如果 SSH 连不上，先去云控制台确认机器状态。</p></div>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>4.3 硬件与环境概览</h3>'+
     '<p>登录 L40 后，先确认硬件配置：</p>'+
@@ -890,21 +921,24 @@ function r_ch4(area,ch){
     '<tr><td><strong>磁盘</strong></td><td>PVC 持久化存储, /root/gpufree-data/</td></tr>'+
     '</tbody></table>'+
     '<div class="callout"><div class="lb">📍 PVC 持久化存储</div><p style="margin:0">L40 的 <code>/root/gpufree-data/</code> 是 PVC 持久化卷——<strong>关机不会丢数据</strong>。训练 checkpoints、下载的模型权重、实验代码都应该放在这个目录下。但注意：<strong>Git 提交还是要 push</strong>——PVC 是本机的持久化，不是远程备份。</p></div>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>4.4 Python 环境配置</h3>'+
     '<p>L40 上已有 Python 3.9 环境和 CUDA。本章用 <strong>uv</strong> 管理项目依赖，与本机 §2 的配置保持一致：</p>'+
     '<pre><code># L40 上执行（首次配置）\n# 1. 确认 Python\npython3 --version  # Python 3.9.x\n\n# 2. 安装 uv（如果没有）\ncurl -LsSf https://astral.sh/uv/install.sh | sh\nsource ~/.cargo/env\n\n# 3. 创建 vla-course 工程目录\nmkdir -p /root/gpufree-data/vla-course\ncd /root/gpufree-data/vla-course\n\n# 4. 初始化 uv 项目\nuv init\n\n# 5. 安装 PyTorch（CUDA 12.x）\nuv pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121\n\n# 6. 安装 VLA 训练核心依赖\nuv pip install transformers accelerate datasets\nuv pip install peft bitsandbytes  # LoRA + 量化</code></pre>'+
     '<h4>验证 GPU 可用</h4>'+
     '<pre><code>uv run python -c "\nimport torch\nprint(f\'PyTorch: {torch.__version__}\')\nprint(f\'CUDA available: {torch.cuda.is_available()}\')\nprint(f\'GPU: {torch.cuda.get_device_name(0)}\')\nprint(f\'VRAM: {torch.cuda.get_device_properties(0).total_mem / 1024**3:.1f} GB\')\n"\n# 预期输出:\n# PyTorch: 2.x.x\n# CUDA available: True\n# GPU: NVIDIA L40\n# VRAM: 44.3 GB</code></pre>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>4.5 文件传输：本机 ↔ L40</h3>'+
     '<p>课程代码在本机开发，训练在 L40 上跑。需要可靠的文件同步方案：</p>'+
     '<pre><code># 方式 1：scp（单文件/小目录）\n# 本机 → L40\nscp -P 30334 /develop/vla-course/codes/step5_smolvla/train.py root@120.209.70.195:/root/gpufree-data/vla-course/\n\n# L40 → 本机（下载 checkpoint）\nscp -P 30334 root@120.209.70.195:/root/gpufree-data/vla-course/ckpt/best.pt /develop/vla-course/ckpt/</code></pre>'+
     '<pre><code># 方式 2：rsync（大目录、增量同步、推荐）\n# 本机 → L40（只传变化的文件）\nrsync -avz -e "ssh -p 30334" \\\n  /develop/vla-course/codes/ \\\n  root@120.209.70.195:/root/gpufree-data/vla-course/codes/\n\n# L40 → 本机（下载训练产物）\nrsync -avz -e "ssh -p 30334" \\\n  root@120.209.70.195:/root/gpufree-data/vla-course/outputs/ \\\n  /develop/vla-course/outputs/</code></pre>'+
     '<div class="card"><div class="card-label">🔑 scp vs rsync</div><p><strong>scp</strong> 适合传单个文件（模型权重、checkpoint）。<strong>rsync</strong> 适合同步整个目录（代码、数据集），只传变化的文件，中断后可续传。课程后续的"本机编辑 → rsync 推送 → L40 训练 → rsync 拉回"工作流基于 rsync。</p></div>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>4.6 tmux：让训练在后台跑</h3>'+
     '<p>训练 SmolVLA 需要 ~6 小时，Pi0 需要 ~20 小时。SSH 断开会导致前台进程被杀。<strong>tmux</strong> 让训练会话在后台持久运行：</p>'+
@@ -918,19 +952,22 @@ function r_ch4(area,ch){
     '<tr><td>水平分屏</td><td><code>Ctrl+B, "</code></td></tr>'+
     '<tr><td>垂直分屏</td><td><code>Ctrl+B, %</code></td></tr>'+
     '</tbody></table>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>4.7 GPU 监控：实时看显存和利用率</h3>'+
     '<p>训练中需要监控 GPU 状态——显存是否 OOM、利用率是否打满：</p>'+
     '<pre><code># 基础监控（实时刷新）\nwatch -n 1 nvidia-smi\n\n# 更详细的监控（推荐安装 gpustat）\nuv pip install gpustat\ngpustat -i 1  # 每秒刷新\n\n# 输出示例:\n# [0] NVIDIA L40 | 48°C,  85% utilization,  32768 / 46068 MB\n#     pid 12345: python train.py  (32600 MB)</code></pre>'+
     '<div class="callout warn"><div class="lb">⚠️ 训练中关注</div><ul style="margin:8px 0 0 1.2em;line-height:1.9"><li><strong>显存 (Memory)</strong>：接近 44GB 红线时减小 batch_size</li><li><strong>利用率 (Utilization)</strong>：应该 > 80%，如果 < 50% 可能是数据加载瓶颈</li><li><strong>温度 (Temp)</strong>：L40 正常在 50-70°C，超过 80°C 检查散热</li></ul></div>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>4.8 动手实验：初始化 L40 训练环境</h3>'+
     '<div class="practice-box"><div class="pb-title">🧪 把 L40 环境从头配好</div><ol class="steps"><li><strong>SSH 登录</strong>：<code>ssh -p 30334 root@120.209.70.195</code></li><li><strong>创建工程目录</strong>：<code>mkdir -p /root/gpufree-data/vla-course && cd /root/gpufree-data/vla-course</code></li><li><strong>初始化 uv</strong>：<code>uv init && uv pip install torch --index-url https://download.pytorch.org/whl/cu121</code></li><li><strong>验证 GPU</strong>：<code>uv run python -c "import torch; print(torch.cuda.get_device_name(0))"</code></li><li><strong>启动 tmux</strong>：<code>tmux new -s test</code></li><li><strong>运行 GPU 压测</strong>：<code>uv run python codes/step4_l40/gpu_test.py</code></li></ol></div>'+
     '<details><summary>展开查看 gpu_test.py（GPU 基准测试脚本）</summary><div class="details-body"><pre><code>#!/usr/bin/env python3\n"""L40 GPU 基准测试 - 验证环境可用、测试算力上限"""\nimport torch\nimport time\n\nprint("=" * 50)\nprint("L40 GPU 基准测试")\nprint("=" * 50)\n\n# 1. 基本信息\nprint(f"\\nPyTorch: {torch.__version__}")\nprint(f"CUDA available: {torch.cuda.is_available()}")\nprint(f"GPU: {torch.cuda.get_device_name(0)}")\n\nprops = torch.cuda.get_device_properties(0)\nprint(f"VRAM: {props.total_mem / 1024**3:.1f} GB")\nprint(f"Compute Capability: {props.major}.{props.minor}")\nprint(f"CUDA Cores: {props.multi_processor_count} SM")\n\n# 2. 矩阵乘法算力测试\nprint("\\n--- 矩阵乘法算力测试 ---")\nfor size in [1024, 2048, 4096, 8192]:\n    a = torch.randn(size, size, device="cuda", dtype=torch.float16)\n    b = torch.randn(size, size, device="cuda", dtype=torch.float16)\n    \n    # 预热\n    for _ in range(5):\n        torch.matmul(a, b)\n    torch.cuda.synchronize()\n    \n    # 计时\n    start = time.time()\n    for _ in range(20):\n        torch.matmul(a, b)\n    torch.cuda.synchronize()\n    elapsed = time.time() - start\n    \n    tflops = 2 * size**3 * 20 / elapsed / 1e12\n    print(f"  {size}x{size} matmul: {elapsed/20*1000:.1f}ms ({tflops:.1f} TFLOPS)")\n\n# 3. 可用显存测试\nprint("\\n--- 显存测试 ---")\nfor frac in [0.25, 0.5, 0.75, 0.9]:\n    try:\n        total = torch.cuda.get_device_properties(0).total_mem\n        size = int(total * frac) // 4  # float32\n        x = torch.zeros(size, device="cuda")\n        used = torch.cuda.memory_allocated() / 1024**3\n        print(f"  分配 {frac*100:.0f}% 显存: {used:.1f} GB OK")\n        del x\n        torch.cuda.empty_cache()\n    except RuntimeError as e:\n        print(f"  分配 {frac*100:.0f}% 显存: OOM")\n\nprint("\\nGPU 基准测试完成！")\nprint("L40 环境已就绪，可以开始下一步训练。")</code></pre></div></details>'+
     '<p>跑通这个实验后，L40 环境就完整配置好了。§5 的 SmolVLA 训练脚本直接 scp 上去就能跑。</p>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>📝 本章小结</h3><div class="card"><div class="card-label">带走这几条</div><ol style="padding-left:1.5em;line-height:2.1"><li><strong>L40 的 44GB 显存</strong>恰好覆盖 SmolVLA (16-24GB) 和 Pi0 (30-40GB) 的训练需求</li><li><strong>SSH 免密 + config 别名</strong>：一行 <code>ssh l40</code> 连接，不输密码</li><li><strong>PVC 持久化</strong>：<code>/root/gpufree-data/</code> 关机不丢数据，checkpoint 放这里</li><li><strong>uv 统一管理</strong>：本机和 L40 用同一套依赖方案，避免版本差异</li><li><strong>rsync + tmux</strong>：代码推送 → tmux 后台训练 → 断开 SSH → 过几小时回来收结果</li></ol></div>'+
 
@@ -952,7 +989,8 @@ function r_ch5(area,ch){
     '<tr><td>Pi0</td><td>3B</td><td>30-40 GB</td><td>~20h</td><td>~$16</td><td>全量微调</td></tr>'+
     '</tbody></table>'+
     '<div class="card"><div class="card-label">🔑 SmolVLA 的定位</div><p>SmolVLA 不是"最强的 VLA"——OpenVLA 和 Pi0 在绝对性能上更优。但 SmolVLA 是<strong>"最可训的 VLA"</strong>：450M 参数在 L40 上可以全量微调（而非仅 LoRA），6 小时训完，成本 $5。你可以在一个下午迭代 3-4 组实验。对教学和原型验证来说，这个"实验速度"比绝对性能更重要。</p></div>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>5.2 SmolVLA 架构</h3>'+
     '<p>SmolVLA 的架构和 OpenVLA（§3.2）遵循相同的三阶段范式，但每个组件都做了轻量化：</p>'+
@@ -967,7 +1005,8 @@ function r_ch5(area,ch){
     '<tr><td><strong>总参数</strong></td><td>~7.1B</td><td>~462M</td><td>15x</td></tr>'+
     '</tbody></table>'+
     '<div class="callout"><div class="lb">💡 为什么语言基座缩减最多？</div><p style="margin:0">LLaMA 2 7B 的 32 层 Transformer 中，相当一部分容量用在了"世界知识"（历史、地理、常识）。VLA 只需要编码指令（"把杯子放到桌上"），不需要知道法国大革命是哪一年。SmolLM 360M 被蒸馏为只保留指令理解能力，甩掉了 90% 的冗余。</p></div>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>5.3 数据准备</h3>'+
     '<p>VLA 训练需要"图像 + 指令 + 动作"三元组。SmolVLA 使用 <strong>BridgeData V2</strong>——Stanford 开源的桌面操作数据集，是目前公开的最大规模机器人操作数据：</p>'+
@@ -985,7 +1024,8 @@ function r_ch5(area,ch){
     '<h4>数据加载代码</h4>'+
     '<pre><code>import torch\nfrom torch.utils.data import Dataset, DataLoader\nfrom PIL import Image\nimport numpy as np\n\nclass VLADataset(Dataset):\n    """VLA 训练数据集"""\n    def __init__(self, data_dir, split="train", image_size=224):\n        self.samples = self._load_index(data_dir, split)\n        self.image_size = image_size\n        self.num_bins = 256\n    \n    def _load_index(self, data_dir, split):\n        # 加载 JSON 索引文件\n        import json\n        with open(f"{data_dir}/{split}_index.json") as f:\n            return json.load(f)\n    \n    def __len__(self):\n        return len(self.samples)\n    \n    def __getitem__(self, idx):\n        sample = self.samples[idx]\n        \n        # 加载并预处理图像\n        image = Image.open(sample["image_path"]).convert("RGB")\n        image = image.resize((self.image_size, self.image_size))\n        image = np.array(image).transpose(2,0,1) / 255.0  # (3,H,W)\n        \n        # 离散化动作\n        action = np.array(sample["action"], dtype=np.float32)\n        action_tokens = self._discretize(action)\n        \n        return {\n            "image": torch.from_numpy(image).float(),\n            "action_tokens": torch.from_numpy(action_tokens).long(),\n            "instruction": sample["instruction"],\n        }\n    \n    def _discretize(self, action):\n        """连续动作 [-1,1] → 256 桶索引 [0,255]"""\n        scaled = (action + 1.0) / 2.0 * (self.num_bins - 1)\n        return np.clip(scaled, 0, self.num_bins - 1).astype(np.int32)</code></pre>'+
     '<div class="callout"><div class="lb">💡 L40 上的数据策略</div><p style="margin:0">BridgeData V2 约 200GB，L40 磁盘足够。用 <code>num_workers=8</code> 做多进程数据加载，避免 GPU 等 CPU。如果磁盘 I/O 是瓶颈（训练利用率 < 50%），可以先用 <code>torch.save</code> 把 JPEG 解码为预处理的 tensor，省去每次 epoch 的 JPEG 解码开销。</p></div>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>5.4 训练管线</h3>'+
     '<p>SmolVLA 的训练和 LLM 训练几乎没有区别——因为动作被离散化为 256 个"词"，训练就是标准的自回归语言建模：</p>'+
@@ -996,7 +1036,8 @@ function r_ch5(area,ch){
     '<div class="practice-box"><div class="pb-title">🧪 SmolVLA 完整训练实验</div><ol class="steps"><li><strong>rsync 推送代码</strong>：<code>rsync -avz -e "ssh -p 30334" /develop/vla-course/codes/step5_smolvla/ root@120.209.70.195:/root/gpufree-data/vla-course/codes/step5_smolvla/</code></li><li><strong>SSH + tmux</strong>：<code>ssh l40 && tmux new -s smolvla</code></li><li><strong>启动训练</strong>：<code>cd /root/gpufree-data/vla-course && uv run python codes/step5_smolvla/train.py</code></li><li><strong>断开 tmux</strong>：<code>Ctrl+B, D</code>，过 6 小时回来看结果</li></ol></div>'+
     '<details><summary>展开查看 train.py（完整训练脚本）</summary><div class="details-body"><pre><code>#!/usr/bin/env python3\n"""SmolVLA 450M 完整训练脚本 —— L40 单卡, ~6h"""\nimport torch\nimport torch.nn as nn\nfrom torch.utils.data import DataLoader\nfrom torch.cuda.amp import autocast, GradScaler\nimport time, os, json\nfrom pathlib import Path\n\n# ===== 超参数 =====\nCONFIG = {\n    "batch_size": 64,\n    "learning_rate": 1e-4,\n    "weight_decay": 0.01,\n    "warmup_steps": 500,\n    "max_steps": 100_000,\n    "gradient_accumulation": 1,\n    "image_size": 224,\n    "num_bins": 256,\n    "action_dim": 7,\n    "log_interval": 100,\n    "save_interval": 5000,\n    "eval_interval": 5000,\n}\n\n# ===== 模型定义 =====\nclass SmolVLA(nn.Module):\n    """SmolVLA: EfficientViT + SmolLM + Action Head"""\n    def __init__(self, vision_dim=512, llm_dim=1024, num_bins=256, action_dim=7):\n        super().__init__()\n        # 视觉编码器（简化版 EfficientViT，实际用 timm 加载）\n        self.vision_encoder = nn.Sequential(\n            nn.Conv2d(3, 64, 7, 2, 3),\n            nn.BatchNorm2d(64), nn.ReLU(),\n            nn.AdaptiveAvgPool2d((14, 14)),\n            nn.Conv2d(64, vision_dim, 1),\n        )  # output: (B, vision_dim, 14, 14) -> flatten to (B, 196, vision_dim)\n        \n        # 投影层\n        self.projector = nn.Linear(vision_dim, llm_dim)\n        \n        # 语言基座（简化版 SmolLM，实际用 transformers 加载）\n        self.llm = nn.TransformerDecoder(\n            nn.TransformerDecoderLayer(\n                d_model=llm_dim, nhead=16, dim_feedforward=4096,\n                dropout=0.1, activation="gelu", batch_first=True\n            ),\n            num_layers=24\n        )\n        \n        # 动作预测头: 7 个独立的 256 类分类器\n        self.action_heads = nn.ModuleList([\n            nn.Linear(llm_dim, num_bins) for _ in range(action_dim)\n        ])\n        \n        self.num_bins = num_bins\n        self.action_dim = action_dim\n    \n    def forward(self, images, action_tokens=None, instruction_embeds=None):\n        B = images.shape[0]\n        \n        # 1. 视觉编码\n        vis_feat = self.vision_encoder(images)  # (B, 512, 14, 14)\n        vis_feat = vis_feat.flatten(2).transpose(1, 2)  # (B, 196, 512)\n        vis_tokens = self.projector(vis_feat)  # (B, 196, 1024)\n        \n        # 2. LLM 前向（简化：只用视觉 token）\n        llm_out = self.llm(vis_tokens, vis_tokens)  # (B, 196, 1024)\n        pooled = llm_out.mean(dim=1)  # (B, 1024) — 全局池化\n        \n        # 3. 动作预测\n        action_logits = [head(pooled) for head in self.action_heads]\n        # 每个: (B, 256)\n        \n        if action_tokens is not None:\n            # 训练模式：计算损失\n            losses = []\n            for dim_idx, logits in enumerate(action_logits):\n                target = action_tokens[:, dim_idx]  # (B,)\n                loss = nn.CrossEntropyLoss()(logits, target)\n                losses.append(loss)\n            return torch.stack(losses).mean()\n        else:\n            # 推理模式：选概率最高的桶\n            actions = []\n            for logits in action_logits:\n                pred_bin = logits.argmax(dim=-1)  # (B,)\n                # 256 桶均匀分布在 [-1, 1]\n                action_val = (pred_bin.float() / (self.num_bins - 1)) * 2 - 1\n                actions.append(action_val.unsqueeze(-1))\n            return torch.cat(actions, dim=-1)  # (B, 7)\n\n# ===== 训练循环 =====\ndef train():\n    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")\n    print(f"Device: {device}\")\n    \n    # 模型\n    model = SmolVLA().to(device)\n    print(f"参数总量: {sum(p.numel() for p in model.parameters()) / 1e6:.1f}M")\n    \n    # 数据和优化器\n    train_loader = DataLoader(\n        VLADataset("/root/gpufree-data/bridge_data_v2", "train"),\n        batch_size=CONFIG["batch_size"], shuffle=True,\n        num_workers=8, pin_memory=True\n    )\n    val_loader = DataLoader(\n        VLADataset("/root/gpufree-data/bridge_data_v2", "val"),\n        batch_size=CONFIG["batch_size"], shuffle=False,\n        num_workers=4, pin_memory=True\n    )\n    \n    optimizer = torch.optim.AdamW(\n        model.parameters(),\n        lr=CONFIG["learning_rate"],\n        weight_decay=CONFIG["weight_decay"]\n    )\n    \n    # 学习率调度：线性 warmup + 余弦衰减\n    def lr_lambda(step):\n        if step < CONFIG["warmup_steps"]:\n            return step / CONFIG["warmup_steps"]\n        progress = (step - CONFIG["warmup_steps"]) / (CONFIG["max_steps"] - CONFIG["warmup_steps"])\n        return 0.5 * (1 + torch.cos(torch.tensor(progress * 3.14159))).item()\n    \n    scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)\n    scaler = GradScaler()  # AMP 混合精度\n    \n    # 训练\n    os.makedirs("outputs/smolvla", exist_ok=True)\n    model.train()\n    global_step = 0\n    best_val_loss = float("inf")\n    start_time = time.time()\n    \n    print(f"\\n开始训练, max_steps={CONFIG[\'max_steps\']}, \"\n          f"batch_size={CONFIG[\'batch_size\']}\\n")\n    \n    while global_step < CONFIG["max_steps"]:\n        for batch in train_loader:\n            images = batch["image"].to(device)\n            action_tokens = batch["action_tokens"].to(device)\n            \n            with autocast():\n                loss = model(images, action_tokens=action_tokens)\n                loss = loss / CONFIG["gradient_accumulation"]\n            \n            scaler.scale(loss).backward()\n            \n            if (global_step + 1) % CONFIG["gradient_accumulation"] == 0:\n                scaler.step(optimizer)\n                scaler.update()\n                scheduler.step()\n                optimizer.zero_grad()\n            \n            global_step += 1\n            \n            # 日志\n            if global_step % CONFIG["log_interval"] == 0:\n                elapsed = time.time() - start_time\n                steps_per_sec = global_step / elapsed\n                eta = (CONFIG["max_steps"] - global_step) / steps_per_sec / 3600\n                print(f"Step {global_step:6d}/{CONFIG[\'max_steps\']} | \"\n                      f"loss={loss.item()*CONFIG[\'gradient_accumulation\']:.4f} | \"\n                      f"lr={scheduler.get_last_lr()[0]:.2e} | \"\n                      f"speed={steps_per_sec:.1f} steps/s | ETA={eta:.1f}h")\n            \n            # 验证\n            if global_step % CONFIG["eval_interval"] == 0:\n                val_loss = evaluate(model, val_loader, device)\n                print(f"  >>> Val loss: {val_loss:.4f}\")\n                if val_loss < best_val_loss:\n                    best_val_loss = val_loss\n                    torch.save(model.state_dict(), "outputs/smolvla/best.pt")\n                    print(f"  >>> Best model saved! (val_loss={best_val_loss:.4f})")\n            \n            # 保存 checkpoint\n            if global_step % CONFIG["save_interval"] == 0:\n                torch.save({\n                    "step": global_step,\n                    "model_state_dict": model.state_dict(),\n                    "optimizer_state_dict": optimizer.state_dict(),\n                }, f"outputs/smolvla/ckpt_{global_step}.pt")\n            \n            if global_step >= CONFIG["max_steps"]:\n                break\n    \n    total_time = (time.time() - start_time) / 3600\n    print(f"\\n训练完成！总耗时: {total_time:.1f}h\")\n    print(f"Best val loss: {best_val_loss:.4f}\")\n    print(f"模型保存在: outputs/smolvla/best.pt\")\n\ndef evaluate(model, loader, device):\n    model.eval()\n    total_loss = 0.0\n    with torch.no_grad():\n        for batch in loader:\n            images = batch["image"].to(device)\n            action_tokens = batch["action_tokens"].to(device)\n            with autocast():\n                loss = model(images, action_tokens=action_tokens)\n            total_loss += loss.item()\n    model.train()\n    return total_loss / len(loader)\n\nif __name__ == "__main__":\n    train()</code></pre></div></details>'+
     '<div class="callout"><div class="lb">📊 预期训练曲线</div><p style="margin:0">100K steps 训练中：前 500 步 warmup（loss 快速下降），5K-20K 步 loss 从 3.5 降到 1.8（主学习阶段），50K 后 loss 缓慢下降至 ~1.2（精调阶段），val loss 在 70K-80K 步达到最低点后可能微升（轻微过拟合）。<strong>best.pt 通常出现在 60K-80K 步之间。</strong></p></div>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>5.5 评估：在 LIBERO 上验证</h3>'+
     '<p>训练完不能只看 loss——loss 低不代表机器人能完成任务。必须在上游的 LIBERO 仿真中实际跑：</p>'+
@@ -1010,7 +1051,8 @@ function r_ch5(area,ch){
     '<tr><td><strong>平均</strong></td><td>~55%</td><td>~50%</td><td>15x 参数缩减，性能只掉 ~5%</td></tr>'+
     '</tbody></table>'+
     '<div class="card"><div class="card-label">🔑 核心发现</div><p>SmolVLA 用 <strong>1/15 的参数</strong>、<strong>1/6 的训练成本</strong>、<strong>1/3 的推理显存</strong>，换来了 <strong>~5% 的性能下降</strong>。这个性价比在工程上极为诱人——如果你的任务难度在 LIBERO-Spatial 级别，SmolVLA 是压倒性的最优选择。</p></div>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>5.6 调试与改进</h3>'+
     '<p>训练不会一次成功。以下是常见问题和解决方案：</p>'+
@@ -1023,7 +1065,8 @@ function r_ch5(area,ch){
     '</tbody></table>'+
     '<h4>进阶改进方向</h4>'+
     '<ol style="padding-left:1.5em;line-height:2.2"><li><strong>数据增强</strong>：随机裁剪、颜色抖动、水平翻转（注意动作方向也要翻转）</li><li><strong>多任务训练</strong>：混入 LIBERO-100 的数据，提升泛化能力</li><li><strong>蒸馏 OpenVLA</strong>：用 OpenVLA 的预测作为 soft label，SmolVLA 学它的"思考过程"</li><li><strong>LoRA 微调</strong>：冻结 EfficientViT，只给 SmolLM 加 LoRA，对新任务只需训 1h</li></ol>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>📝 本章小结</h3><div class="card"><div class="card-label">带走这几条</div><ol style="padding-left:1.5em;line-height:2.1"><li><strong>SmolVLA = EfficientViT (100M) + SmolLM (360M) + 7x256 动作头 (~2M)</strong></li><li><strong>450M 参数, L40 全量训练 6h, 成本 $5</strong>——是目前最可训的 VLA</li><li><strong>15x 参数缩减 → 仅 5% 性能下降</strong>，性价比极高</li><li><strong>训练 = 自回归语言建模</strong>：动作离散化为 256 桶，和预测下一个 token 一模一样</li><li><strong>评估 ≠ 看 loss</strong>：必须跑 LIBERO 仿真，loss 低不代表任务能完成</li><li><strong>静态帧过滤</strong>是数据预处理的关键——大部分机器人数据中机械臂在"等待"，这些帧会教会模型"不动"</li></ol></div>'+
 
@@ -1046,7 +1089,8 @@ function r_ch6(area,ch){
     '<h4>问题 3：单峰假设</h4>'+
     '<p>给定同一张图片 + 同一句指令，自回归 VLA 永远输出同一个动作（贪心解码）。但现实中，"把杯子拿起来"可能有多种合理方式——从左绕过去、从右绕过去、从上往下抓。自回归的 softmax 在理论上可以建模多峰，但实践中几乎总是坍缩到单峰。</p>'+
     '<div class="card"><div class="card-label">🔑 一句话总结</div><h5>自回归 = 逐 token 生成，误差会累积；扩散 = 并行去噪，全局最优</h5><p>扩散模型不逐个生成动作维度——它在"全白噪声"的状态下一步步去噪，<strong>7 个维度同时浮现</strong>。这保证了各维度之间的协调性。</p></div>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>6.2 扩散模型直觉</h3>'+
     '<p>扩散模型的核心思想可以用一个日常场景理解：</p>'+
@@ -1065,7 +1109,8 @@ function r_ch6(area,ch){
     '<tr><td><strong>Flow Matching</strong></td><td>直线路径 a<sub>t</sub>=(1-t)a<sub>0</sub>+t·ε</td><td>快（5-50 步即可）</td><td>Pi0</td></tr>'+
     '</tbody></table>'+
     '<div class="callout"><div class="lb">💡 Pi0 为什么选 Flow Matching？</div><p style="margin:0">机器人控制需要实时性。DDPM 的 1000 步采样需要几秒——机械臂早撞墙了。Flow Matching 把扩散路径从"随机游走"改成"直线"，5-50 步即可生成高质量动作，延迟降到 100ms 以内。这是 Pi0 能做到 100Hz 高频控制的关键。</p></div>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>6.3 Pi0 架构</h3>'+
     '<p>Pi0（Physical Intelligence, 2024）是目前扩散 VLA 的 SOTA 代表。它的核心设计是<strong>双系统架构</strong>：</p>'+
@@ -1085,7 +1130,8 @@ function r_ch6(area,ch){
     '<tr><td><strong>参数</strong></td><td>450M</td><td>~3B</td></tr>'+
     '<tr><td><strong>训练时间(L40)</strong></td><td>~6h</td><td>~20h</td></tr>'+
     '</tbody></table>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>6.4 Pi0 训练</h3>'+
     '<p>Pi0 的训练和 SmolVLA（§5.4）在流程上相似——数据加载、梯度下降、checkpoint 保存。但训练目标完全不同：</p>'+
@@ -1095,7 +1141,8 @@ function r_ch6(area,ch){
     '<div class="practice-box"><div class="pb-title">🧪 Pi0 训练实验（L40, ~20h）</div><ol class="steps"><li><strong>rsync 推送</strong>：<code>rsync -avz -e "ssh -p 30334" codes/step6_pi0/ root@120.209.70.195:/root/gpufree-data/vla-course/codes/step6_pi0/</code></li><li><strong>SSH + tmux</strong>：<code>ssh l40 && tmux new -s pi0</code></li><li><strong>启动训练</strong>：<code>cd /root/gpufree-data/vla-course && uv run python codes/step6_pi0/train_pi0.py</code></li><li><strong>断开</strong>：<code>Ctrl+B, D</code>，第二天回来看结果</li></ol></div>'+
     '<details><summary>展开查看 train_pi0.py（扩散 VLA 训练核心）</summary><div class="details-body"><pre><code>#!/usr/bin/env python3\n"""Pi0 扩散 VLA 训练 — Flow Matching, L40 约 20h"""\nimport torch, torch.nn as nn, math, time, os\nimport numpy as np\n\nCONFIG = {\n    "batch_size": 16, "lr": 1e-4, "max_steps": 150_000,\n    "image_size": 224, "action_dim": 7, "hidden_dim": 1024,\n    "log_interval": 100, "save_interval": 10000,\n}\n\nclass Pi0FlowMatching(nn.Module):\n    """Pi0 简化版: UNet + Flow Matching 动作生成"""\n    def __init__(self, action_dim=7, hidden=1024):\n        super().__init__()\n        # 视觉编码器（同 SmolVLA）\n        self.vision = nn.Sequential(\n            nn.Conv2d(3, 64, 7, 2, 3), nn.BatchNorm2d(64), nn.ReLU(),\n            nn.Conv2d(64, 128, 3, 2, 1), nn.BatchNorm2d(128), nn.ReLU(),\n            nn.Conv2d(128, 256, 3, 2, 1), nn.BatchNorm2d(256), nn.ReLU(),\n            nn.AdaptiveAvgPool2d((7, 7)),\n        )\n        self.vis_proj = nn.Linear(256 * 7 * 7, hidden)\n        \n        # 条件编码: 时间步 t 的嵌入\n        self.time_embed = nn.Sequential(\n            nn.Linear(1, hidden), nn.ReLU(), nn.Linear(hidden, hidden)\n        )\n        \n        # 去噪网络: 输入 noisy_action (7) + hidden 条件 → 预测向量场\n        self.denoiser = nn.Sequential(\n            nn.Linear(action_dim + hidden, hidden),\n            nn.ReLU(),\n            nn.Linear(hidden, hidden),\n            nn.ReLU(),\n            nn.Linear(hidden, hidden),\n            nn.ReLU(),\n            nn.Linear(hidden, action_dim),\n        )\n    \n    def forward(self, images, actions, t=None):\n        \"\"\"\n        Args:\n            images: (B,3,H,W)\n            actions: (B,7) 真实动作\n            t: (B,) 或 None (推理时)\n        Returns:\n            训练: scalar loss\n            推理: (B,7) 去噪后的动作\n        \"\"\"\n        B = images.shape[0]\n        vis = self.vision(images).flatten(1)  # (B, 256*7*7)\n        cond = self.vis_proj(vis)  # (B, hidden)\n        \n        if t is not None:\n            # === 训练模式 ===\n            t_embed = self.time_embed(t.unsqueeze(-1))  # (B, hidden)\n            cond = cond + t_embed\n            \n            # Flow Matching: 直线路径\n            noise = torch.randn_like(actions)\n            noisy_actions = (1 - t.unsqueeze(-1)) * actions + t.unsqueeze(-1) * noise\n            \n            # 预测向量场 v = noise - action\n            target = noise - actions\n            pred = self.denoiser(torch.cat([noisy_actions, cond], dim=-1))\n            return nn.MSELoss()(pred, target)\n        else:\n            # === 推理模式: Euler 法逐步去噪 ===\n            x = torch.randn(B, CONFIG["action_dim"], device=images.device)\n            n_steps = 10\n            dt = 1.0 / n_steps\n            for i in range(n_steps):\n                t_i = torch.full((B,), i * dt, device=images.device)\n                t_embed = self.time_embed(t_i.unsqueeze(-1))\n                c = cond + t_embed\n                v = self.denoiser(torch.cat([x, c], dim=-1))\n                x = x + v * dt  # Euler 步进\n            return x  # (B, 7) 连续动作 [-1, 1]</code></pre></div></details>'+
     '<div class="card"><div class="card-label">📊 预期结果</div><p>Pi0 在 LIBERO-Spatial 上的成功率约 <strong>65-85%</strong>，比 SmolVLA（55-75%）高约 10 个百分点。但代价是 3B vs 450M 参数、20h vs 6h 训练时间。Pi0 的轨迹也比 SmolVLA 更平滑——扩散模型的全局优化保证了各步动作之间的连贯性。</p></div>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>6.5 自回归 vs 扩散：轨迹对比</h3>'+
     '<p>理论讲完了，来看实际的差别。以下是同一个 LIBERO 任务（"把碗放到盘子上"）的末端轨迹：</p>'+
@@ -1107,14 +1154,16 @@ function r_ch6(area,ch){
     '<tr><td><strong>多解探索</strong></td><td>几乎不探索</td><td>从不同初始噪声可得不同轨迹</td></tr>'+
     '</tbody></table>'+
     '<div class="card"><div class="card-label">🔑 工程启示</div><ol style="padding-left:1.5em;line-height:2"><li>需要<strong>高成功率 + 稳定轨迹</strong>：选 Pi0（扩散）</li><li>需要<strong>快速实验 + 低成本</strong>：选 SmolVLA（自回归）</li><li>不差钱的工业场景：Pi0。教学和原型验证：SmolVLA</li><li>两种范式各有所长，没有绝对的好坏——选对工具比选"最好"的工具更重要</li></ol></div>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>6.6 动手实验：Pi0 驱动课程机械臂</h3>'+
     '<p>用 Pi0 驱动 §2 的 6-DOF MuJoCo 机械臂，对比 §2 的正弦 mock 轨迹：</p>'+
     '<div class="practice-box"><div class="pb-title">🧪 Pi0 仿真实验</div><ol class="steps"><li><strong>确认模型</strong>：确保 <code>outputs/pi0/best.pt</code> 存在（训练产出）</li><li><strong>运行</strong>：<code>uv run python codes/step6_pi0/sim_pi0_arm.py</code></li><li><strong>观察</strong>：MuJoCo Viewer 中机械臂被 Pi0 驱动，轨迹比 §2 的正弦 mock 更"有目的性"</li></ol></div>'+
     '<p>运行后会看到：</p>'+
     '<ul style="padding-left:1.5em;line-height:2"><li><strong>§2 mock</strong>：机械臂画正弦曲线，无目的地摆动</li><li><strong>§6 Pi0</strong>：机械臂末端向红色目标方块移动，夹爪在接近时闭合——这是 VLA 模型真正"看懂场景后的决策"</li></ul>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>📝 本章小结</h3><div class="card"><div class="card-label">带走这几条</div><ol style="padding-left:1.5em;line-height:2.1"><li><strong>自回归的三大局限</strong>：误差累积、离散化精度损失、单峰假设坍缩</li><li><strong>扩散 = 去噪</strong>：前向加噪（墨水扩散），反向去噪（凝聚回形状），训练目标 = MSE(预测噪声, 真实噪声)</li><li><strong>Flow Matching = 直线扩散</strong>：比 DDPM 快 20-200 倍（5-50 步 vs 1000 步），Pi0 能做到 100Hz 的关键</li><li><strong>Pi0 双系统</strong>：π0-High 做规划（1-5Hz 扩散），π0-Base 做执行（100Hz MLP 跟踪）</li><li><strong>两种范式各有所长</strong>：SmolVLA（6h/$5）适合快速实验，Pi0（20h/$16）适合追求 SOTA</li></ol></div>'+
 
@@ -1145,7 +1194,8 @@ function r_ch7(area,ch){
     '<tr><td><strong>安全</strong></td><td>碰撞 = 重来</td><td>碰撞 = 损坏硬件或伤人</td></tr>'+
     '</tbody></table>'+
     '<div class="callout warn"><div class="lb">⚠️ sim2real gap</div><p style="margin:0">仿真里训到 90% 成功率的模型，到真机上可能只有 30%。这不是代码 bug——是物理世界比数学方程复杂得多。本章的安全机制和域适应策略，就是为缩小这个 gap 服务的。</p></div>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>7.2 模型转换：从 L40 到 NUC</h3>'+
     '<p>L40 上训好的 PyTorch 模型（400M-3B 参数），需要经过三次转换才能在 Gemini 的 RTX 4060（8GB）上高效运行：</p>'+
@@ -1160,7 +1210,8 @@ function r_ch7(area,ch){
     '<tr><td><strong>INT8</strong></td><td>~3.5GB</td><td>~25ms</td><td><1%</td></tr>'+
     '</tbody></table>'+
     '<p>Gemini 的 RTX 4060 只有 8GB 显存——操作系统占 1GB，剩下 7GB 给模型。FP16 刚好够（但没余量做 batch），INT8 有 3.5GB 余量可以同时跑 2 个模型（左右臂各一个）。</p>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>7.3 推理管线</h3>'+
     '<p>真机推理管线和 §3.4 的 LIBERO 仿真管线原理相同，但多了三个物理世界的挑战：多相机同步、实时通信、安全校验。</p>'+
@@ -1178,7 +1229,8 @@ function r_ch7(area,ch){
     '<tr><td><strong>总延迟</strong></td><td><strong>~64ms</strong></td><td><strong>≈15Hz</strong></td></tr>'+
     '</tbody></table>'+
     '<div class="callout"><div class="lb">💡 15Hz 够用吗？</div><p style="margin:0">对于桌面操作任务（抓取、放置、推拉），15Hz 足够。工业装配需要 50Hz+，但那是传统控制器的领域。VLA 的定位是<strong>理解+规划</strong>——15Hz 的推理频率配上 100Hz 的底层 IK 跟踪，可以覆盖 90% 的日常操作场景。</p></div>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>7.4 LeRobot 真机适配</h3>'+
     '<p>LeRobot 是 HuggingFace 的机器人框架，提供了标准的真机接口。适配 Gemini 需要配置三个关键参数：</p>'+
@@ -1186,7 +1238,8 @@ function r_ch7(area,ch){
     '<pre><code># configs/gemini.yaml\nrobot:\n  type: gemini\n  arms: 4                    # 1 主 + 3 从\n  dof_per_arm: 6             # 6 个关节\n  gripper: binary            # 二值夹爪（开/关）\n  \n  # 关节限位（弧度）\n  joint_limits:\n    j1: [-3.14, 3.14]       # 基座旋转\n    j2: [-2.0, 1.5]          # 肩部\n    j3: [-2.5, 1.5]          # 肘部\n    j4: [-3.14, 3.14]        # 腕旋转\n    j5: [-2.0, 2.0]          # 腕俯仰\n    j6: [-3.14, 3.14]        # 末端\n  \n  # 控制参数\n  control_freq: 100           # 底层控制频率 (Hz)\n  vla_freq: 15                # VLA 推理频率 (Hz)\n  \n  # 安全\n  max_torque: 10.0            # 最大力矩 (Nm)\n  max_velocity: 3.0           # 最大角速度 (rad/s)\n  emergency_stop_torque: 15.0 # 急停阈值</code></pre>'+
     '<h4>LeRobot 接口实现</h4>'+
     '<pre><code>from lerobot.robots import Robot\n\nclass GeminiRobot(Robot):\n    """Gemini 双臂机器人 LeRobot 适配器"""\n    \n    def __init__(self, config_path="configs/gemini.yaml"):\n        self.config = self._load_config(config_path)\n        self.arms = {}  # {"main": Arm, "slave1": Arm, ...}\n        self.cameras = {}  # {"front": Camera, "left": Camera, ...}\n        self._connect_hardware()\n    \n    def get_observation(self):\n        """获取 VLA 推理所需的观测\n        \n        Returns:\n            dict: {\n                "images": {"front": (224,224,3), "wrist": (224,224,3)},\n                "joint_state": {"main": [6], "slave1": [6], ...},\n                "gripper": {"main": 0.0, ...}  # 0=关, 1=开\n            }\n        """\n        obs = {}\n        obs["images"] = {name: cam.read() for name, cam in self.cameras.items()}\n        obs["joint_state"] = {name: arm.get_joints() for name, arm in self.arms.items()}\n        obs["gripper"] = {name: arm.get_gripper() for name, arm in self.arms.items()}\n        return obs\n    \n    def execute_action(self, action, arm_name="main"):\n        """执行 VLA 输出的动作\n        \n        Args:\n            action: (7,) numpy — 6D 位姿增量 + gripper\n            arm_name: 执行动作的机械臂\n        \"\"\"\n        arm = self.arms[arm_name]\n        \n        # 1. 安全检查\n        action = self._safety_check(action)\n        \n        # 2. 增量 → 绝对位姿\n        current_pose = arm.get_end_effector_pose()\n        target_pose = current_pose + action[:6] * 0.01  # 缩小步长\n        \n        # 3. IK → 关节角\n        joint_angles = arm.inverse_kinematics(target_pose)\n        \n        # 4. 发送关节命令\n        arm.set_joints(joint_angles)\n        \n        # 5. 夹爪控制\n        if action[6] > 0:\n            arm.open_gripper()\n        else:\n            arm.close_gripper()</code></pre>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>7.5 安全机制</h3>'+
     '<p>仿真可以随便 crash，真机不行。Gemini 的安全设计分三层：</p>'+
@@ -1203,13 +1256,15 @@ function r_ch7(area,ch){
     '<tr><td><strong>物理参数差</strong></td><td>质量/摩擦/阻尼不准确</td><td>域随机化：训练时随机扰动质量±20%、摩擦系数</td></tr>'+
     '<tr><td><strong>延迟差</strong></td><td>仿真 500Hz vs 真机 15Hz</td><td>训练时人为加入动作延迟（丢帧）</td></tr>'+
     '</tbody></table>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>7.6 动手实验：SmolVLA 真机部署</h3>'+
     '<p>把 L40 上训好的 SmolVLA checkpoint 部署到 Gemini 上运行端到端 demo：</p>'+
     '<div class="practice-box"><div class="pb-title">🧪 Gemini 真机部署全流程</div><ol class="steps"><li><strong>L40 导出模型</strong>：<code>uv run python codes/step7_gemini/deploy_model.py --ckpt outputs/smolvla/best.pt</code></li><li><strong>传输到 NUC</strong>：<code>scp smolvla_int8.engine gemini@nuc-ip:/home/gemini/models/</code></li><li><strong>NUC 上加载模型</strong>：<code>uv run python codes/step7_gemini/run_gemini.py --model smolvla_int8.engine</code></li><li><strong>观察</strong>：终端打印每步动作 + 力矩监控，机械臂根据指令执行操作</li></ol></div>'+
     '<details><summary>展开查看 deploy_model.py（模型转换脚本）</summary><div class="details-body"><pre><code>#!/usr/bin/env python3\n"""L40 → NUC 模型转换: PyTorch → ONNX → TensorRT INT8\"\"\"\nimport torch, argparse, os, sys\nsys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "step5_smolvla"))\nfrom train import SmolVLA\n\ndef main():\n    parser = argparse.ArgumentParser()\n    parser.add_argument("--ckpt", default="outputs/smolvla/best.pt")\n    parser.add_argument("--output", default="smolvla.onnx")\n    args = parser.parse_args()\n\n    print(f"加载 checkpoint: {args.ckpt}")\n    model = SmolVLA().cuda()\n    state = torch.load(args.ckpt, map_location="cuda")\n    if "model_state_dict" in state:\n        state = state["model_state_dict"]\n    model.load_state_dict(state, strict=False)\n    model.eval()\n\n    print("导出 ONNX...")\n    dummy = torch.randn(1, 3, 224, 224).cuda()\n    torch.onnx.export(\n        model, dummy, args.output,\n        input_names=["image"], output_names=["action"],\n        opset_version=17,\n    )\n    print(f"✅ ONNX 导出: {args.output}")\n    print("下一步: 复制到 NUC → trtexec --onnx=smolvla.onnx --int8 --saveEngine=smolvla_int8.engine")\n\nif __name__ == "__main__":\n    main()</code></pre></div></details>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>📝 本章小结</h3><div class="card"><div class="card-label">带走这几条</div><ol style="padding-left:1.5em;line-height:2.1"><li><strong>Gemini = 4 臂 + NUC + 4 相机</strong>，RTX 4060 8GB 限制模型必须 INT8 量化</li><li><strong>模型转换三阶段</strong>：PyTorch(.pt)→ONNX→TensorRT→INT8（14GB→3.5GB）</li><li><strong>推理管线总延迟 ~64ms ≈ 15Hz</strong>，VLA 做理解+规划，底层 100Hz IK 做跟踪</li><li><strong>三层安全</strong>：动作钳制(L1)→力矩监控(L2)→急停(L3)，仿真 crash vs 真机损坏</li><li><strong>sim2real 三种 gap</strong>：视觉域差（加噪声训练）、物理参数差（域随机化）、延迟差（丢帧训练）</li></ol></div>'+
 
@@ -1234,7 +1289,8 @@ function r_ch8(area,ch){
     '<tr><td><strong>ACoT 融合模块</strong></td><td>—</td><td>融合显式推理链 + 隐式表征 → 动作解码器</td></tr>'+
     '</tbody></table>'+
     '<div class="card"><div class="card-label">🔑 为什么思考链能提升成功率？</div><p>长时序任务（"把苹果放进盒子"需要 15-20 步）中，自回归 VLA 容易在第 5-8 步"迷失"——忘了自己为什么要移动。ACoT 的推理链相当于给每一步的动作预测附加了<strong>全局上下文</strong>："我现在在第 3 步，目标是把苹果移动到盒子，苹果在 (0.3, 0.1)，盒子在 (0.5, -0.2)"。有了这个上下文，模型在每一步都知道"我是谁、我在哪、我要去哪"。</p></div>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>8.2 ManipDojo 与 ICRA 竞赛</h3>'+
     '<p>VLA 领域有两类主要竞赛：ManipDojo（操作）和 ICRA（综合）。参与竞赛是检验课程学习成果的最好方式。</p>'+
@@ -1250,7 +1306,8 @@ function r_ch8(area,ch){
     '<p>你在 §5 训的 SmolVLA 可以直接作为竞赛的 baseline 提交。升级路径：</p>'+
     '<ol style="padding-left:1.5em;line-height:2.2"><li><strong>SmolVLA baseline</strong>（§5）：直接提交，预计成功率 ~50%</li><li><strong>+ ACoT 推理链</strong>：在 SmolVLA 前加一个轻量推理器（Qwen2-0.5B），预计 +10-15%</li><li><strong>+ Pi0 扩散头</strong>（§6）：把自回归动作头换成 Flow Matching 扩散头，预计 +5-10%</li><li><strong>+ 多相机融合</strong>（§7.3）：4 路相机拼接替代单路，预计 +5-8%</li><li><strong>+ 后训练数据增强</strong>：在 BridgeData V2 基础上加自己的遥操作数据，预计 +5-10%</li></ol>'+
     '<div class="card"><div class="card-label">🏆 课程知识的竞赛映射</div><p>§5 的 SmolVLA = baseline、§6 的扩散动作 = 精度提升、§7 的多相机 + 安全 = 鲁棒性、§8.1 的 ACoT = 长时序。你学的每一章都在竞赛中有对应抓手——<strong>没有无效章节</strong>。</p></div>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>8.3 多模态 VLA 趋势</h3>'+
     '<p>当前 VLA 的输入只有视觉+语言。但机器人的感官远不止这两样。以下是正在进入 VLA 的新模态：</p>'+
@@ -1261,7 +1318,8 @@ function r_ch8(area,ch){
     '<tr><td><strong>深度</strong></td><td>RGB-D 相机 / LiDAR</td><td>3D 空间理解——"在杯子后面 5cm 处"而非"(0.3, 0.1)"</td><td>3D-VLA, SpatialVLA</td></tr>'+
     '</tbody></table>'+
     '<div class="callout"><div class="lb">📈 趋势判断</div><p style="margin:0">2025-2026 年 VLA 的主旋律是<strong>多模态融合</strong>。视觉+语言已经相对成熟（§1-§7 覆盖了这条路线），触觉和力觉是下一个突破口。如果你要在 VLA 方向做研究，<strong>"触觉 VLA"或"力觉 VLA"是很好的切入点</strong>——赛道不算拥挤，但需求明确（精细操作）。</p></div>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>8.4 从 VLA 到具身 AGI</h3>'+
     '<p>最后，回到 §1.11 提出的能力边界。站在 2026 年中回看，哪些已经被突破、哪些仍然是开放问题？</p>'+
@@ -1275,7 +1333,8 @@ function r_ch8(area,ch){
     '<h4>你的下一步</h4>'+
     '<p>学完这 8 章，你已经具备了 VLA 工程师的完整技能。以下是几条可选的进阶路线：</p>'+
     '<ol style="padding-left:1.5em;line-height:2.2"><li><strong>竞赛路线</strong>：用 §5 的 SmolVLA + §8.1 的 ACoT 打 ManipDojo，积累竞赛经验</li><li><strong>研究路线</strong>：选一个多模态方向（触觉/力觉），在课程代码基础上加新传感器，发一篇 workshop paper</li><li><strong>工程路线</strong>：把 §7 的 Gemini 部署流程产品化——做一个"VLA 一键部署"工具</li><li><strong>教学路线</strong>：把本课程翻译成英文、或适配到新的机器人平台（UR5、Franka、Aloha）</li></ol>'+
-    '</section>'++
+    '</section>'+
+
 
     '<section><h3>📝 本章小结</h3><div class="card"><div class="card-label">带走这几条</div><ol style="padding-left:1.5em;line-height:2.1"><li><strong>ACoT-VLA = 先想再动</strong>：推理链给每一步动作提供全局上下文，长时序成功率 +15-20%</li><li><strong>竞赛是最好检验</strong>：§5 的 SmolVLA = baseline，§6 扩散 + §8 ACoT = 进阶</li><li><strong>多模态是趋势</strong>：触觉和力觉是下一个突破口，赛道不拥挤</li><li><strong>VLA 还在快速进化</strong>：2024 的瓶颈正在被突破——实时性已解决，长时序和力控是 2026-2027 的主战场</li><li><strong>你的起点</strong>：竞赛/研究/工程/教学——四条路都从这 8 章出发</li></ol></div>'+
 
