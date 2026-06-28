@@ -59,17 +59,16 @@ def load_model():
 
 def get_image(obs, resize_size=224, center_crop=False):
     img = obs["agentview_image"]
-    if center_crop:
-        # 256→224 center crop（对齐官方评估管道）
-        h, w = img.shape[:2]
-        crop_size = min(h, w)
-        start_h = (h - crop_size) // 2
-        start_w = (w - crop_size) // 2
-        img = img[start_h:start_h+crop_size, start_w:start_w+crop_size]
+    img = img[::-1, ::-1]  # 180° 旋转（对齐官方预处理）
+    # JPEG 编解码（对齐 RLDS 数据管道）
+    import io
+    buf = io.BytesIO()
+    Image.fromarray(img).save(buf, format='JPEG', quality=95)
+    buf.seek(0)
+    img = np.array(Image.open(buf))
     if resize_size:
         img = np.array(Image.fromarray(img).resize((resize_size, resize_size), Image.LANCZOS))
     return Image.fromarray(img).convert("RGB")
-
 def normalize_gripper(action, binarize=True):
     """
     夹爪动作规范化：OpenVLA 输出 [0,1] → LIBERO 期望 [-1,+1]
@@ -107,8 +106,8 @@ def run_task(model, processor, task, task_id):
 
     env_args = {
         "bddl_file_name": task_bddl_file,
-        "camera_heights": 224,
-        "camera_widths": 224,
+        "camera_heights": 256,
+        "camera_widths": 256,
     }
     env = OffScreenRenderEnv(**env_args)
 
@@ -144,9 +143,6 @@ def run_task(model, processor, task, task_id):
 
         # 夹爪规范化：取反 + 二值化
         action = normalize_gripper(action, binarize=True)
-# OSC 归一化：模型输出物理值(米/弧度) → OSC [-1,+1]
-        OSC_POS_MAX = np.array([0.05, 0.05, 0.05, 0.5, 0.5, 0.5])
-        action[:6] = np.clip(action[:6] / OSC_POS_MAX, -1.0, 1.0)
 
 
         obs, reward, done, info = env.step(action.tolist())
