@@ -131,12 +131,14 @@ def main():
             )
 
         # --- Token → 连续动作 ---
-        NUM_BINS = 256
+        VOCAB_SIZE = 32000
+        NUM_BINS = 255
         BIN_CENTERS = np.linspace(-1.0, 1.0, NUM_BINS)
         new_tokens = generated_ids[0, inputs["input_ids"].shape[1] :]
-        action = np.array(
-            [BIN_CENTERS[min(new_tokens[i].item(), NUM_BINS - 1)] for i in range(7)]
-        )
+        # OpenVLA formula: bin_idx = vocab_size - token_id - 1
+        discretized = VOCAB_SIZE - new_tokens.cpu().numpy().astype(np.int64) - 1
+        discretized = np.clip(discretized, 0, NUM_BINS - 1)
+        action = BIN_CENTERS[discretized]
 
         # 补 1 维 (保留位) → 8 维
         action_8d = np.append(action, [0.0])
