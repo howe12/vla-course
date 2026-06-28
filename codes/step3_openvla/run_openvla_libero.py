@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
-"""Step 3 实验：OpenVLA 7B + LIBERO-Spatial 零样本推理（10 任务评估）
+"""Step 3 实验：OpenVLA 7B + LIBERO-Spatial 零样本推理（官方对齐版）
 
-加载 OpenVLA 7B 模型，在全部 10 个 LIBERO-Spatial 任务上运行推理闭环，
-保存每个任务的截图并统计成功率。
+严格对齐 OpenVLA 官方 run_libero_eval.py：
+- OffScreenRenderEnv（OSC_POSE 控制器）
+- 图像 180° 旋转 + JPEG 编解码（匹配训练预处理）
+- 夹爪取反 + 二值化
+- 10 步初始等待
+- 220 步最大推理步数
+- 每任务生成截图
 
 用法：
-    本机同步 + VLA-L40 运行:
-    git push && ssh VLA-L40 "cd ... && git pull && .venv/bin/python step3_openvla/run_openvla_libero.py"
+    cd /root/gpufree-data/vla-course/codes
+    .venv/bin/python step3_openvla/run_openvla_libero.py
 """
 
 import sys
@@ -19,22 +24,18 @@ try:
     import torch
     from transformers import AutoModelForVision2Seq, AutoProcessor
     from libero.libero import benchmark, get_libero_path
-    from libero.libero.envs import TASK_MAPPING
+    from libero.libero.envs import OffScreenRenderEnv
 except ImportError as e:
     print(f"❌ 缺少依赖: {e}")
-    print("请运行: uv pip install transformers accelerate torch libero pillow")
     sys.exit(1)
 
 # ─── 配置 ──────────────────────────────────────────────────────
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-MAX_STEPS = 30
-SCREENSHOT_STEPS = [0, 5, 10, 20]  # 固定截帧点
+MAX_STEPS = 220            # libero_spatial: 最长 demo = 193 步
+NUM_WAIT_STEPS = 10        # 初始等待帧（物体稳定）
+SCREENSHOT_STEPS = [0, 40, 80, 120, 160, 200]  # 固定截帧点
 SCREENSHOT_DIR = os.path.join(os.path.dirname(__file__), "_screenshots")
 os.makedirs(SCREENSHOT_DIR, exist_ok=True)
-
-VOCAB_SIZE = 32000
-NUM_BINS = 255
-BIN_CENTERS = np.linspace(-1.0, 1.0, NUM_BINS)
 
 
 def load_model():
@@ -56,32 +57,74 @@ def load_model():
     return model, processor
 
 
-def create_env(task):
-    """根据 task 创建 LIBERO 环境"""
-    bddl_dir = os.path.join(get_libero_path("bddl_files"), "libero_spatial")
-    bddl_path = os.path.join(bddl_dir, task.bddl_file)
-    return TASK_MAPPING["libero_tabletop_manipulation"](
-        bddl_file_name=bddl_path,
-        robots=["Panda"],
-        has_offscreen_renderer=True,
-        has_renderer=False,
-        camera_heights=224,
-        camera_widths=224,
-        render_gpu_device_id=-1,
-    )
+def get_image(obs, resize_size=224):
+    """
+    图像预处理（对齐官方 OpenVLA 评估管道）：
+    1. 提取 agentview_image
+    2. 旋转 180 度（匹配训练预处理）
+    3. JPEG 编解码（匹配 RLDS 数据管道）
+    4. 缩放到模型输入尺寸
+    """
+    img = obs["agentview_image"]
+    img = img[::-1, ::-1]  # 180° 旋转
+
+    # JPEG 编解码
+    try:
+        import tensorflow as tf
+        img = tf.image.encode_jpeg(img).numpy()
+        img = tf.io.decode_image(img, expand_animations=False, dtype=tf.uint8).numpy()
+        if resize_size:
+            img = tf.image.resize(img, (resize_size, resize_size), method="lanczos3", antialias=True)
+            img = tf.cast(tf.clip_by_value(tf.round(img), 0, 255), tf.uint8).numpy()
+    except ImportError:
+        # Fallback: simple resize
+        img = np.array(Image.fromarray(img).resize((resize_size, resize_size), Image.LANCZOS))
+
+    return Image.fromarray(img).convert("RGB")
 
 
-def save_screenshot(obs, task_id, step):
+def normalize_gripper(action, binarize=True):
+    """
+    夹爪动作规范化：OpenVLA 输出 [0,1] → LIBERO 期望 [-1,+1]
+    官方: 0=关, 1=开 → LIBERO: -1=开, +1=关
+    """
+    # 取反: OpenVLA (0=close,1=open) → LIBERO convention
+    # LIBERO: -1=open, +1=close
+    # So: flip sign
+    gripper = action[..., -1]
+    if binarize:
+        gripper = np.where(gripper > 0, 1.0, -1.0)
+    # Invert: OpenVLA close→open → LIBERO open→close
+    gripper = -gripper
+    if isinstance(action, np.ndarray):
+        action[..., -1] = gripper
+    return action
+
+
+def save_screenshot(obs, task_id, step, resize=True):
     """保存观测截图"""
-    img = Image.fromarray(obs["agentview_image"]).convert("RGB")
-    path = os.path.join(SCREENSHOT_DIR, f"task{task_id:02d}_step{step:02d}.png")
-    img.save(path)
+    img = obs["agentview_image"]
+    if resize:
+        img = np.array(Image.fromarray(img).resize((448, 448), Image.LANCZOS))
+    path = os.path.join(SCREENSHOT_DIR, f"task{task_id:02d}_step{step:03d}.png")
+    Image.fromarray(img).save(path)
     return path
 
 
 def run_task(model, processor, task, task_id):
-    """在单个任务上运行推理闭环，返回 (success, screenshots)"""
-    env = create_env(task)
+    """在单个任务上运行推理闭环（对齐官方评估管道）"""
+    task_description = task.language
+    task_bddl_file = os.path.join(
+        get_libero_path("bddl_files"), task.problem_folder, task.bddl_file
+    )
+
+    env_args = {
+        "bddl_file_name": task_bddl_file,
+        "camera_heights": 224,
+        "camera_widths": 224,
+    }
+    env = OffScreenRenderEnv(**env_args)
+
     obs = env.reset()
     screenshots = {}
     success = False
@@ -90,11 +133,17 @@ def run_task(model, processor, task, task_id):
     if 0 in SCREENSHOT_STEPS:
         screenshots[0] = save_screenshot(obs, task_id, 0)
 
-    instruction = task.language
-    prompt = f"In: What action should the robot take to {instruction}?\nOut:"
+    # ─── 初始等待帧（物体稳定） ──────────────────────────────
+    dummy_action = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -1.0])
+    for _ in range(NUM_WAIT_STEPS):
+        obs, _, _, _ = env.step(dummy_action)
+
+    # ─── 推理循环 ────────────────────────────────────────────
+    prompt = f"In: What action should the robot take to {task_description}?\nOut:"
 
     for step in range(MAX_STEPS):
-        image = Image.fromarray(obs["agentview_image"]).convert("RGB")
+        image = get_image(obs, resize_size=224)
+
         inputs = processor(
             images=image, text=prompt, return_tensors="pt"
         ).to(DEVICE, dtype=torch.float16 if DEVICE == "cuda" else torch.float32)
@@ -102,15 +151,16 @@ def run_task(model, processor, task, task_id):
         with torch.no_grad():
             action = model.predict_action(
                 **inputs,
-                unnorm_key="fractal20220817_data",
+                unnorm_key="bridge_orig",  # OpenVLA 默认无 LIBERO norm_stats
                 do_sample=False,
             )
 
-        # predict_action 返回 7 维 numpy，补 1 维 → 8 维
-        action_8d = np.append(action, [0.0])
-        obs, reward, done, info = env.step(action_8d)
+        # 夹爪规范化：取反 + 二值化
+        action = normalize_gripper(action, binarize=True)
 
-        # LIBERO 需要手动检查任务成功
+        obs, reward, done, info = env.step(action.tolist())
+
+        # LIBERO 成功检测
         if step > 0 and env._check_success():
             success = True
             screenshots["final"] = save_screenshot(obs, task_id, step)
@@ -120,7 +170,6 @@ def run_task(model, processor, task, task_id):
         if step in SCREENSHOT_STEPS:
             screenshots[step] = save_screenshot(obs, task_id, step)
 
-    # 最终帧（如未成功）
     if not success and "final" not in screenshots:
         screenshots["final"] = save_screenshot(obs, task_id, MAX_STEPS - 1)
 
@@ -131,22 +180,23 @@ def run_task(model, processor, task, task_id):
 def main():
     print("=" * 60)
     print("Step 3 实验：OpenVLA 7B + LIBERO-Spatial 零样本推理")
-    print("         10 任务评估 + 截图")
+    print("         10 任务评估 + 截图（官方管道对齐）")
     print("=" * 60)
 
-    # ─── 加载模型（一次）────────────────────────────────────────
+    # ─── 加载模型 ─────────────────────────────────────────────
     model, processor = load_model()
 
-    # ─── 加载任务列表 ───────────────────────────────────────────
+    # ─── 加载任务列表 ─────────────────────────────────────────
     print("[2/3] 加载 LIBERO-Spatial 任务列表...")
     benchmark_dict = benchmark.get_benchmark_dict()
     task_suite = benchmark_dict["libero_spatial"]()
     num_tasks = task_suite.n_tasks
-    print(f"  共 {num_tasks} 个任务\n")
+    print(f"  共 {num_tasks} 个任务（每任务最多 {MAX_STEPS} 步）\n")
 
-    # ─── 遍历评估 ───────────────────────────────────────────────
-    print(f"[3/3] 开始推理评估（每任务最多 {MAX_STEPS} 步）...")
+    # ─── 遍历评估 ─────────────────────────────────────────────
+    print(f"[3/3] 开始推理评估...")
     print(f"  截图保存: {SCREENSHOT_DIR}/")
+    print(f"  等待帧: {NUM_WAIT_STEPS} | 最大步: {MAX_STEPS}")
     print()
 
     results = []
@@ -154,7 +204,6 @@ def main():
 
     for task_id in range(num_tasks):
         task = task_suite.get_task(task_id)
-        task_name = task.name[:60]
         instruction = task.language[:80]
 
         print(f"  ── Task {task_id} ──────────────────────────────")
@@ -164,25 +213,24 @@ def main():
 
         status = "✅" if success else "❌"
         shots = len(screenshots)
-        results.append((task_id, success, shots, task_name))
+        results.append((task_id, success, task.name[:60]))
 
         print(f"  结果: {status}  |  截图: {shots} 张")
         print()
 
     elapsed = time.time() - t_start
+    successes = sum(r[1] for r in results)
 
-    # ─── 汇总 ───────────────────────────────────────────────────
+    # ─── 汇总 ─────────────────────────────────────────────────
     print("=" * 60)
     print("评估汇总")
     print("=" * 60)
     print(f"  总任务数: {num_tasks}")
-    print(f"  成功:     {sum(r[1] for r in results)}")
-    print(f"  失败:     {sum(1 for r in results if not r[1])}")
-    success_rate = sum(r[1] for r in results) / num_tasks * 100
-    print(f"  成功率:   {success_rate:.0f}%")
-    print(f"  总耗时:   {elapsed:.0f}s（约 {elapsed/num_tasks:.0f}s/任务）")
+    print(f"  成功:     {successes}")
+    print(f"  失败:     {num_tasks - successes}")
+    print(f"  成功率:   {successes/num_tasks*100:.0f}%")
+    print(f"  总耗时:   {elapsed:.0f}s")
     print(f"\n  截图目录: {SCREENSHOT_DIR}/")
-    print(f"  截图数量: {sum(r[2] for r in results)} 张")
 
     print(f"\n  ⏭️  下一步: 将截图嵌入 ch3 课程 → push → GitHub Pages")
 
