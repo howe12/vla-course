@@ -726,7 +726,8 @@ function r_ch3(area,ch){
 
     '<section><h3>本章小结</h3><div class="card"><div class="card-label">带走这几条</div><ol style="padding-left:1.5em;line-height:2.1"><li><strong>OpenVLA = SigLIP ViT + LLaMA 2 7B + 7x256 动作头</strong></li><li><strong>基础模型 微调模型</strong>：Panda 机器人必须用 LIBERO 微调版</li><li><strong>三对齐</strong>：unnorm_key 对齐数据、图像预处理对齐训练、动作空间对齐控制器</li><li><strong>8 轮调试教会我们</strong>：一次只改一个变量，先对齐官方管道再调参</li></ol></div>'+
 
-    '<h4>思考题</h4><ol style="padding-left:1.5em;line-height:2.2"><li>为什么基础模型在 LIBERO 上成功率为 0%？如果换一个也用 Panda 臂的数据集微调，能直接迁移吗？</li><li>180 图像旋转对模型推理的影响有多大？设计实验验证。</li><li>如果要把 OpenVLA 部署到 Gemini 真机上（7），需要改哪些配置？</li></ol>'+
+    '<h4>思考题</h4><ol style="padding-left:1.5em;line-height:2.2"><li>为什么基础模型在 LIBERO 上成功率为 0%？如果换一个也用 Panda 臂的数据集微调，能直接迁移吗？</li><li>180 图像旋转对模型推理的影响有多大？设计实验验证。</li><li>如果要把 OpenVLA 部署到 Gemini 真机上（7），需要改哪些配置？</li></ol>';
+};
 function r_ch4(area,ch){
   area.innerHTML=
     '<div class="transition-note"><strong>🔄 从 §3 的 OpenVLA 推理出发</strong> 你已经用 OpenVLA 在本地跑通了 VLA 推理。但 OpenVLA 是拿别人训好的权重——接下来三章要<strong>自己训练 VLA 模型</strong>。训练需要 GPU，而且最好是 40GB+ 显存的大卡。本章把 L40 云端 GPU 环境搭好，让后续的 SmolVLA（§5）和 Pi0（§6）训练"开箱即用"。</div>'+
