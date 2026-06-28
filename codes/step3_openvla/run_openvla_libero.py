@@ -37,12 +37,20 @@ def main():
     # ============================================================
     # 1. 加载 OpenVLA 模型
     # ============================================================
+    import os
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-    MODEL_ID = "openvla/openvla-7b"
+
+    # 优先使用本地模型路径（L40 云端 / VLA-L40 容器）
+    LOCAL_MODEL_PATH = "/root/gpufree-data/models/openvla-7b"
+    if os.path.isdir(LOCAL_MODEL_PATH):
+        MODEL_ID = LOCAL_MODEL_PATH
+    else:
+        MODEL_ID = "openvla/openvla-7b"
 
     print(f"\n[1/4] 加载 OpenVLA 模型到 {DEVICE}...")
     print(f"  模型: {MODEL_ID}")
-    print(f"  首次运行会自动下载 ~14GB，请耐心等待...")
+    if MODEL_ID == "openvla/openvla-7b":
+        print(f"  首次运行会自动下载 ~14GB，请耐心等待...")
 
     if DEVICE == "cpu":
         print("  ⚠️  未检测到 GPU，将使用 CPU 推理（速度较慢）")
@@ -54,7 +62,7 @@ def main():
             device_map="auto" if DEVICE == "cuda" else None,
             trust_remote_code=True,
         )
-        processor = AutoProcessor.from_pretrained(MODEL_ID)
+        processor = AutoProcessor.from_pretrained(MODEL_ID, trust_remote_code=True)
     except Exception as e:
         print(f"\n❌ 模型加载失败: {e}")
         print("\n可能原因：")
