@@ -100,14 +100,13 @@ def run_task(model, processor, task, task_id):
         ).to(DEVICE, dtype=torch.float16 if DEVICE == "cuda" else torch.float32)
 
         with torch.no_grad():
-            generated_ids = model.generate(**inputs, max_new_tokens=7, do_sample=False)
+            action = model.predict_action(
+                **inputs,
+                unnorm_key="bridge_orig",
+                do_sample=False,
+            )
 
-        # Token → 动作
-        new_tokens = generated_ids[0, inputs["input_ids"].shape[1]:]
-        discretized = VOCAB_SIZE - new_tokens.cpu().numpy().astype(np.int64) - 1
-        discretized = np.clip(discretized, 0, NUM_BINS - 1)
-        action = BIN_CENTERS[discretized]
-
+        # predict_action 返回 7 维 numpy，补 1 维 → 8 维
         action_8d = np.append(action, [0.0])
         obs, reward, done, info = env.step(action_8d)
 
