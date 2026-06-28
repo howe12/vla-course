@@ -598,7 +598,9 @@ function r_ch3(area,ch){
 
     '<section><h3>3.2 OpenVLA 架构详解</h3>'+
     '<p>OpenVLA 遵循"视觉编码器 → 语言基座 → 动作头"三阶段范式，与 §1 讲的理论架构完全对应：</p>'+
-    '<pre><code>┌──────────────────────────────────────────────────────┐\n│  📷 RGB 图像 (224×224×3)                              │\n│        ↓                                              │\n│  SigLIP ViT-SO (384M)                                │\n│  将图像切为 14×14 = 196 个 patch，输出 196×1024 特征   │\n│        ↓                                              │\n│  ┌─────────────────────────────────────────┐         │\n│  │  Projector: 1024 → 4096 (LLaMA 维度)    │         │\n│  └─────────────────────────────────────────┘         │\n│        ↓                                              │\n│  ┌─────────────────────────────────────────┐         │\n│  │  LLaMA 2 7B (32 层, 4096 hidden)        │         │\n│  │  · 196 个视觉 token + N 个语言 token    │         │\n│  │  · 自回归生成 8 个动作 token             │         │\n│  └─────────────────────────────────────────┘         │\n│        ↓                                              │\n│  ┌─────────────────────────────────────────┐         │\n│  │  Action Head: 每个 token → 256 类分类   │         │\n│  │  7 个动作维 × 256 桶 → 7 个离散索引     │         │\n│  └─────────────────────────────────────────┘         │\n│        ↓                                              │\n│  🦾 连续动作: (Δx, Δy, Δz, Δroll, Δpitch, Δyaw, g)  │\n└──────────────────────────────────────────────────────┘</code></pre>'+
+    '<div style="background:#020617;border-radius:12px;padding:16px;margin:16px 0;overflow-x:auto">'+
+    '<img src="openvla-architecture.svg" alt="OpenVLA 7B 架构图" style="width:100%;max-width:1050px;display:block">'+
+    '</div>'+
     '<h4>三个组件的分工</h4>'+
     '<table><thead><tr><th>组件</th><th>模型</th><th>参数量</th><th>作用</th></tr></thead><tbody>'+
     '<tr><td><strong>视觉编码器</strong></td><td>SigLIP ViT-SO</td><td>~384M</td><td>RGB → 196 个 1024 维视觉 token</td></tr>'+
