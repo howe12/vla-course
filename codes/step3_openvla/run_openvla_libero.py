@@ -22,7 +22,8 @@ from PIL import Image
 try:
     import torch
     from transformers import AutoModelForVision2Seq, AutoProcessor
-    from libero.libero import benchmark
+    from libero.libero import benchmark, get_libero_path
+    from libero.libero.envs import TASK_MAPPING
 except ImportError as e:
     print(f"❌ 缺少依赖: {e}")
     print("请运行: uv pip install transformers accelerate torch libero pillow")
@@ -81,23 +82,26 @@ def main():
     task_suite = benchmark_dict["libero_spatial"]()
     task = task_suite.get_task(0)
 
-    env_args = {
-        "task": task,
-        "bddl_file": task.bddl_file,
-        "camera_heights": 224,
-        "camera_widths": 224,
-    }
-    env = task_suite.get_env(task_id=0, env_args=env_args)
+    bddl_dir = os.path.join(get_libero_path("bddl_files"), "libero_spatial")
+    bddl_path = os.path.join(bddl_dir, task.bddl_file)
+
+    env = TASK_MAPPING["libero_tabletop_manipulation"](
+        bddl_file_name=bddl_path,
+        robots=["Panda"],
+        has_offscreen_renderer=True,
+        has_renderer=False,
+        camera_heights=224,
+        camera_widths=224,
+        render_gpu_device_id=-1,
+    )
 
     print(f"  任务: {task.name}")
-    print(f"  指令: {task.language_instruction}")
+    print(f"  指令: {task.language}")
 
     # ============================================================
     # 3. 推理循环
     # ============================================================
     print("\n[3/4] 开始推理循环...")
-    NUM_BINS = 256
-    BIN_CENTERS = np.linspace(-1.0, 1.0, NUM_BINS)
 
     obs = env.reset()
     max_steps = 30
@@ -105,41 +109,36 @@ def main():
 
     for step in range(max_steps):
         # --- 图像预处理 ---
-        image = Image.fromarray(obs).convert("RGB")
+        image = Image.fromarray(obs["agentview_image"]).convert("RGB")
 
-        # --- 构建 Prompt ---
-        prompt = f"Task: {task.language_instruction}. Bot: In: Im"
+        # --- 构建 OpenVLA Prompt ---
+        instruction = task.language
+        prompt = f"In: What action should the robot take to {instruction}?\nOut:"
 
         # --- 模型推理 ---
         inputs = processor(
             images=image,
             text=prompt,
             return_tensors="pt",
-        ).to(DEVICE)
+        ).to(DEVICE, dtype=torch.float16 if DEVICE == "cuda" else torch.float32)
 
         with torch.no_grad():
-            outputs = model.generate(
-                **inputs,
-                max_new_tokens=8,
-                do_sample=False,
-            )
+            action = model.predict_action(**inputs, do_sample=False)
 
-        # --- Token → 连续动作 ---
-        new_tokens = outputs[0, inputs["input_ids"].shape[1] :]
-        action = np.array(
-            [BIN_CENTERS[new_tokens[i].item() % NUM_BINS] for i in range(7)]
-        )
+        # action 是 7 维 numpy 数组 [dx, dy, dz, droll, dpitch, dyaw, gripper]
+        # 需要补 1 维 (保留位) → 8 维
+        action_8d = np.append(action, [0.0])
 
         # --- 执行动作 ---
-        obs, reward, done, info = env.step(action)
+        obs, reward, done, info = env.step(action_8d)
 
         if step % 5 == 0 or done:
-            d = action
+            a = action
             print(
                 f"  Step {step:2d} | "
-                f"Δxyz=({d[0]:+.3f},{d[1]:+.3f},{d[2]:+.3f}) | "
-                f"Δrpy=({d[3]:+.3f},{d[4]:+.3f},{d[5]:+.3f}) | "
-                f"gripper={d[6]:+.3f}"
+                f"Δxyz=({a[0]:+.3f},{a[1]:+.3f},{a[2]:+.3f}) | "
+                f"Δrpy=({a[3]:+.3f},{a[4]:+.3f},{a[5]:+.3f}) | "
+                f"gripper={a[6]:+.3f}"
             )
 
         if done:
