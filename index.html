@@ -445,7 +445,9 @@ function r_ch2(area,ch){
     '<p>在装 LIBERO 之前，先用课程自带的 6-DOF 机械臂模型跑通一个完整的仿真闭环：</p>'+
     '<div class="practice-box"><div class="pb-title">🧪 第一个仿真实验：看机械臂动起来</div><ol class="steps"><li><strong>确认 MuJoCo</strong>：<code>python3 -c "import mujoco; print(mujoco.__version__)"</code></li><li><strong>启动图形仿真</strong>：<code>cd /develop/vla-course/codes && uv run python step2_sim/sim_vla_arm.py</code></li><li><strong>无头模式</strong>（SSH/服务器）：<code>uv run python step2_sim/sim_vla_arm.py --headless</code></li><li><strong>观察</strong>：图形模式下，MuJoCo Viewer 弹出，机械臂按正弦轨迹摆动，末端逐渐靠近红色目标方块</li></ol></div>'+
     '<p>这个脚本模拟了 VLA 的完整控制循环：</p>'+
-    '<pre><code>相机图像 ──→ [VLA 模型] ──→ 目标关节角\n    ↑                            ↓\n    └──── 末端位置 ←── [MuJoCo PD 控制]</code></pre>'+
+    '<div style="background:#020617;border-radius:12px;padding:16px;margin:16px 0;overflow-x:auto">'+
+    '<img src="sim-control-loop.svg" alt="MuJoCo 仿真控制闭环" style="width:100%;max-width:850px;display:block">'+
+    '</div>'+
     '<p>目前 VLA 输出用正弦轨迹 mock。第 3 章会把 mock 替换为 OpenVLA 7B 的真实推理——到那时，你看到的机械臂运动就是大模型"看懂场景后做出的决策"。</p>'+
     '<div style="display:flex;flex-wrap:wrap;gap:8px;margin:16px 0">'+
       '<div style="flex:1;min-width:140px;text-align:center">'+
@@ -834,7 +836,9 @@ function r_ch5(area,ch){
 
     '<section><h3>5.2 SmolVLA 架构</h3>'+
     '<p>SmolVLA 的架构和 OpenVLA（§3.2）遵循相同的三阶段范式，但每个组件都做了轻量化：</p>'+
-    '<pre><code>┌──────────────────────────────────────────┐\n│  📷 RGB (224x224x3)                      │\n│        ↓                                  │\n│  EfficientViT-B1 (100M)                  │\n│  · 移动端优化的 ViT，比 ViT-L 快 3x       │\n│  · 输出: 196 个 512-dim 视觉 token        │\n│        ↓                                  │\n│  ┌────────────────────────────────┐       │\n│  │  Projector: 512 → 1024         │       │\n│  └────────────────────────────────┘       │\n│        ↓                                  │\n│  ┌────────────────────────────────┐       │\n│  │  SmolLM 360M (24 层, 1024 dim) │       │\n│  │  · 基于 SmolLM-1.7B 蒸馏       │       │\n│  │  · 自回归生成 7 个动作 token   │       │\n│  └────────────────────────────────┘       │\n│        ↓                                  │\n│  ┌────────────────────────────────┐       │\n│  │  Action Head: 7 x Linear(1024,256)│    │\n│  │  7 dims x 256 bins              │       │\n│  └────────────────────────────────┘       │\n│        ↓                                  │\n│  🦾 (Δx, Δy, Δz, Δroll, Δpitch, Δyaw, g)│\n└──────────────────────────────────────────┘</code></pre>'+
+    '<div style="background:#020617;border-radius:12px;padding:16px;margin:16px 0;overflow-x:auto">'+
+    '<img src="smolvla-architecture.svg" alt="SmolVLA 450M 架构图" style="width:100%;max-width:1050px;display:block">'+
+    '</div>'+
     '<h4>三组件对比：OpenVLA vs SmolVLA</h4>'+
     '<table><thead><tr><th>组件</th><th>OpenVLA (7B)</th><th>SmolVLA (450M)</th><th>缩减倍数</th></tr></thead><tbody>'+
     '<tr><td><strong>视觉编码器</strong></td><td>SigLIP ViT-SO (384M)</td><td>EfficientViT-B1 (100M)</td><td>3.8x</td></tr>'+
@@ -945,7 +949,9 @@ function r_ch6(area,ch){
 
     '<section><h3>6.3 Pi0 架构</h3>'+
     '<p>Pi0（Physical Intelligence, 2024）是目前扩散 VLA 的 SOTA 代表。它的核心设计是<strong>双系统架构</strong>：</p>'+
-    '<pre><code>┌─────────────────────────────────────────────┐\n│  📷 RGB 图像 + 🤖 本体感知 (关节角/速度)      │\n│        ↓                                     │\n│  ┌──────────────────────────────────┐        │\n│  │  π0-High (低频, 1-5 Hz)          │        │\n│  │  · Flow Matching Transformer     │        │\n│  │  · 任务规划 + 子目标生成          │        │\n│  │  · 输出: 粗粒度动作序列 (未来 1s) │        │\n│  └──────────────┬───────────────────┘        │\n│                 ↓ 子目标                      │\n│  ┌──────────────────────────────────┐        │\n│  │  π0-Base (高频, 100 Hz)          │        │\n│  │  · 轻量 MLP 策略                 │        │\n│  │  · 接收 π0-High 的子目标         │        │\n│  │  · 输出: 关节力矩 (直接驱动机器人)│        │\n│  └──────────────────────────────────┘        │\n│        ↓                                     │\n│  🦾 关节力矩 → 机械臂执行                     │\n└─────────────────────────────────────────────┘</code></pre>'+
+    '<div style="background:#020617;border-radius:12px;padding:16px;margin:16px 0;overflow-x:auto">'+
+    '<img src="pi0-architecture.svg" alt="Pi0 双系统架构图" style="width:100%;max-width:950px;display:block">'+
+    '</div>'+
     '<h4>为什么需要双系统？</h4>'+
     '<p>扩散模型推理一次需要 50-200ms（即使 Flow Matching 也要 5-50 步）。如果每 10ms 就要输出一次力矩（100Hz），扩散模型根本来不及。Pi0 的方案：</p>'+
     '<ol style="padding-left:1.5em;line-height:2.2"><li><strong>π0-High</strong> 每秒跑 1-5 次扩散推理，输出未来 1 秒的"粗粒度目标轨迹"</li><li><strong>π0-Base</strong> 是轻量 MLP，接收子目标，以 100Hz 频率输出关节力矩做精细跟踪</li><li>这就像"领导做规划（π0-High），下属执行（π0-Base）"——分工明确</li></ol>'+
@@ -1039,7 +1045,9 @@ function r_ch7(area,ch){
     '<section><h3>7.3 推理管线</h3>'+
     '<p>真机推理管线和 §3.4 的 LIBERO 仿真管线原理相同，但多了三个物理世界的挑战：多相机同步、实时通信、安全校验。</p>'+
     '<h4>完整管线图</h4>'+
-    '<pre><code>┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐\n│ 相机 1   │   │ 相机 2   │   │ 相机 3   │   │ 相机 4   │\n│ (前方)   │   │ (左侧)   │   │ (右侧)   │   │ (腕部)   │\n└────┬─────┘   └────┬─────┘   └────┬─────┘   └────┬─────┘\n     │               │               │               │\n     └───────────────┴───────┬───────┴───────────────┘\n                             │\n                    ┌────────▼────────┐\n                    │  图像预处理      │\n                    │  · resize 224    │\n                    │  · 拼接/选主     │\n                    │  · 归一化        │\n                    └────────┬────────┘\n                             │\n                    ┌────────▼────────┐\n                    │  VLA 推理        │\n                    │  · TensorRT INT8 │\n                    │  · 20-40ms       │\n                    │  · 输出: 7 维动作│\n                    └────────┬────────┘\n                             │\n                    ┌────────▼────────┐\n                    │  安全检查        │\n                    │  · 力限制        │\n                    │  · 速度钳制      │\n                    │  · 急停检测      │\n                    └────────┬────────┘\n                             │\n                    ┌────────▼────────┐\n                    │  IK + 关节控制   │\n                    │  · 动作→关节角   │\n                    │  · 100Hz 发送    │\n                    └────────┬────────┘\n                             │\n                    ┌────────▼────────┐\n                    │  🦾 Gemini 执行  │\n                    └─────────────────┘</code></pre>'+
+    '<div style="background:#020617;border-radius:12px;padding:16px;margin:16px 0;overflow-x:auto">'+
+    '<img src="gemini-pipeline.svg" alt="Gemini 真机推理管线" style="width:100%;max-width:750px;display:block">'+
+    '</div>'+
     '<h4>延迟预算</h4>'+
     '<table><thead><tr><th>阶段</th><th>耗时</th><th>累计</th></tr></thead><tbody>'+
     '<tr><td>相机采集</td><td>~30ms（4 路同步）</td><td>30ms</td></tr>'+
