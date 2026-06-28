@@ -345,6 +345,20 @@ function r_ch1(area,ch){
     '<div class="card"><div class="card-label">🔑 动作空间的含义</div><p>LIBERO 使用的是<strong>末端执行器增量控制</strong>：每一步预测的是末端位姿的<strong>变化量</strong>（而非绝对位置）。这和 OpenVLA 原论文的动作表示完全一致——§1.5 讲的 256 桶离散化，离散化的就是这 7 个维度的增量值。</p></div>'+
     '</section>'+
 
+    '<section><h3>1.9  动手实验 1：动作离散化</h3>'+
+    '<p>不加载任何模型，用 30 行 Python 亲手把连续动作映射到 256 个离散桶：</p>'+
+    '<div class="practice-box"><div class="pb-title"> 实验 1.1：动作离散化（256 桶方案）</div><ol class="steps"><li><strong>运行</strong>：<code>cd /develop/vla-course/codes && source .venv/bin/activate && python step1_basics/action_discretize.py</code></li><li><strong>观察</strong>：7 维动作 256 桶索引 恢复值，误差 < 0.008</li><li><strong>修改</strong>：改 NUM_BINS=128 或 512，观察精度变化</li></ol></div>'+
+    '<details><summary>展开核心输出</summary><div class="details-body"><pre><code>动作维度: 7  (x, y, z, roll, pitch, yaw, gripper)\n值域: [-1.0, 1.0]\n桶数: 256\n分辨率: 0.00784\n\n      维度       连续值     桶索引       恢复值          误差\n-------------------------------------------------------\n      x    0.3500     172    0.3490     0.00098\n      y   -0.1200     112   -0.1216     0.00157\n      z    0.0800     137    0.0745     0.00549\n   roll    0.0000     127   -0.0039     0.00392\n  pitch   -0.0500     121   -0.0510     0.00098\n    yaw    0.0200     130    0.0196     0.00039\n gripper    1.0000     255    1.0000     0.00000</code></pre></div></details>'+
+    '<div class="card"><div class="card-label"> 学会</div><ul style="line-height:2.0;padding-left:1.2em"><li>连续值 离散桶的公式: <code>bucket = (val+1)/2 255</code></li><li>离散化精度 = 2/255  0.0078，对机械臂控制足够</li><li>256 = 2  1 个字节刚好装下 1 个 token ID</li></ul></div>'+
+    '</section>'+
+
+    '<section><h3>1.10  动手实验 2：Token 编码解码</h3>'+
+    '<p>理解 OpenVLA 如何把 7 维动作编成 8 个 token ID，LLM 自回归生成后解码回动作：</p>'+
+    '<div class="practice-box"><div class="pb-title"> 实验 1.2：动作  Token ID 编码解码</div><ol class="steps"><li><strong>运行</strong>：<code>cd /develop/vla-course/codes && source .venv/bin/activate && python step1_basics/token_encode_decode.py</code></li><li><strong>观察</strong>：7 维动作 1792 个 token ID LLM 生成 解码回动作</li><li><strong>修改</strong>：改 action 数组的值，观察 token ID 如何变化</li></ol></div>'+
+    '<details><summary>展开核心输出</summary><div class="details-body"><pre><code>输入动作: [0.35, -0.12, 0.78, -0.05, 0.0, 0.02, 0.5]\n\n      维度       连续值     桶索引    Token ID   ID//256    ID%256\n-----------------------------------------------------------------\n      x    0.3500     172         172         0       172\n      y   -0.1200     112         368         1       112\n      z    0.7800     226         738         2       226\n   roll   -0.0500     121         889         3       121\n  pitch    0.0000     127        1151         4       127\n    yaw    0.0200     130        1410         5       130\n gripper    0.5000     191        1727         6       191\n\nToken ID = dim  256 + bucket\n  解码: dim = ID // 256, bucket = ID % 256\n  恢复误差 < 0.008</code></pre></div></details>'+
+    '<div class="card"><div class="card-label"> 学会</div><ul style="line-height:2.0;padding-left:1.2em"><li><strong>Token ID = dim  256 + bucket</strong> — 7 维动作编成 7 个整数</li><li><strong>ID // 256 = 维度，ID % 256 = 桶</strong> — 数学上可逆，无信息丢失（精度损失除外）</li><li>LLaMA 词汇表从 ~32000 扩展到 ~33792，加入 1792 个动作 token</li><li>第 8 个 token 是停止符（EOS），告诉 LLM 动作输出完毕</li></ul></div>'+
+    '</section>'+
+
     '<section><h3>📝 本章小结</h3><div class="card"><div class="card-label">带走这几条</div><ol style="padding-left:1.5em;line-height:2.1"><li><strong>VLA = 视觉 + 语言 + 动作</strong>的统一端到端模型，区别于 VLM（只输出文本）和 VLN（只做导航）</li><li><strong>三模态架构</strong>：视觉编码器 → LLM 主干 → 动作预测头，是当前主流设计</li><li><strong>动作离散化</strong>：256 桶方案让连续动作和 LLM Token 统一，自回归生成</li><li><strong>技术演进</strong>：RT-1→RT-2→OpenVLA→π0，从闭源到开源、从巨型到可训</li><li><strong>连续 vs 离散</strong>：离散化方便复用 LLM 架构，连续动作需要专门的扩散/流匹配方案</li></ol></div>'+
 
     '<h4>🤔 思考题</h4><ol style="padding-left:1.5em;line-height:2.2"><li>如果把 VLA 的动作空间从 7 维（末端增量）扩展到全身人形机器人的 50+ 自由度，离散化的 256 桶方案还 work 吗？会遇到什么瓶颈？</li><li>从 RT-1 到 π0，视觉编码器从 EfficientNet 换成了 ViT 又换成了扩散模型——为什么视觉编码器的设计对 VLA 如此关键？</li><li>一个 VLA 模型在仿真中达到 90% 成功率，部署到真机能保持多少？可能的 gap 来源有哪些？</li></ol>';
