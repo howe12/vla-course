@@ -102,7 +102,7 @@ def run_task(model, processor, task, task_id):
         with torch.no_grad():
             action = model.predict_action(
                 **inputs,
-                unnorm_key="bridge_orig",
+                unnorm_key="fractal20220817_data",
                 do_sample=False,
             )
 
