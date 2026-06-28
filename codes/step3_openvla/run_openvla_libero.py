@@ -110,16 +110,17 @@ def run_task(model, processor, task, task_id):
         action_8d = np.append(action, [0.0])
         obs, reward, done, info = env.step(action_8d)
 
-        # 截图
-        if step in SCREENSHOT_STEPS:
-            screenshots[step] = save_screenshot(obs, task_id, step)
-
-        if done:
+        # LIBERO 需要手动检查任务成功
+        if step > 0 and env._check_success():
             success = True
             screenshots["final"] = save_screenshot(obs, task_id, step)
             break
 
-    # 最终帧（如未 done）
+        # 截图
+        if step in SCREENSHOT_STEPS:
+            screenshots[step] = save_screenshot(obs, task_id, step)
+
+    # 最终帧（如未成功）
     if not success and "final" not in screenshots:
         screenshots["final"] = save_screenshot(obs, task_id, MAX_STEPS - 1)
 
