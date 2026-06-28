@@ -580,7 +580,7 @@ function r_ch3(area,ch){
   area.innerHTML=
     '<div class="transition-note"><strong>🔄 从 §2 的仿真环境出发</strong> MuJoCo + LIBERO 已经就绪，随机动作的 Demo 也跑通了。现在把随机数替换为<strong>真正的 VLA 模型</strong>——加载 OpenVLA 7B，让大模型看懂场景、理解指令、输出可以完成任务的机械臂动作。</div>'+
     '<div class="ch-header"><div class="ch-num">第 '+ch.num+' 章</div><h2>'+ch.title+'</h2><p class="ch-desc">'+ch.desc+'</p></div>'+
-    '<div class="callout tip"><div class="lb">🎯 学习目标</div><ul style="margin:8px 0 0 1.2em;line-height:1.9"><li>理解 OpenVLA 的架构：SigLIP ViT + LLaMA 7B + Action Head 的分工</li><li>从 HuggingFace 下载并加载 OpenVLA 7B 模型（FP16 / INT4）</li><li>掌握推理管线：图像预处理 → 多模态前向 → 离散 Token → 连续动作</li><li>理解动作解码的 256 桶方案如何在代码中实现</li><li>在 LIBERO-Spatial 上运行完整的 VLA 零样本推理闭环</li></ul></div>'+
+    '<div class="callout tip"><div class="lb">🎯 学习目标</div><ul style="margin:8px 0 0 1.2em;line-height:1.9"><li>理解 OpenVLA 的架构：SigLIP ViT + LLaMA 7B + Action Head 的分工</li><li>从 HuggingFace 下载并加载 OpenVLA 7B 模型（FP16 / INT4）</li><li>掌握推理管线：图像预处理 → 多模态前向 → 离散 Token → 连续动作</li><li>掌握推理管线：图像预处理 模型前向 动作解码 环境闭环</li><li>在 LIBERO-Spatial 上运行完整的 VLA 微调模型推理闭环</li></ul></div>'+
     '<div class="callout"><div class="lb">📍 本章定位</div><p style="margin:0">本章是<strong>VLA 推理的起点</strong>。你先学会"用"模型——加载现成的 OpenVLA 权重，理解它如何从像素走到关节角。第 4 章（SmolVLA）和第 5 章（Pi0）会教你"训"模型。第 6 章（L40）则是"规模化训练"。</p></div>'+
 
     '<section><h3>3.1 OpenVLA 是什么？</h3>'+
@@ -631,30 +631,106 @@ function r_ch3(area,ch){
     '<div class="card"><div class="card-label">🔑 理解 token → 动作的映射</div><p>假设第 0 维（Δx）的 token ID = 150，256 桶均匀分布在 [-1, 1]：桶 150 的中心 = -1.0 + (150/255) × 2.0 = <strong>+0.176</strong>。这个值就是机械臂末端在 x 方向的增量。ID=0 → -1.0（向左最快），ID=255 → +1.0（向右最快），ID=128 → ~0.0（不动）。</p></div>'+
     '</section>'+
 
-    '<section><h3>3.5 完整推理闭环：OpenVLA + LIBERO</h3>'+
-    '<p>把上面的推理管线嵌入 LIBERO 控制循环，替换 §2 的随机动作：</p>'+
-    '<div class="practice-box"><div class="pb-title">🧪 OpenVLA 零样本推理实验</div><ol class="steps"><li><strong>确认环境</strong>：<code>cd /develop/vla-course/codes && uv run python -c "from transformers import AutoModelForVision2Seq; print(\'OK\')"</code></li><li><strong>下载模型</strong>（首次约 14GB）：运行下方脚本会自动从 HuggingFace 拉取</li><li><strong>运行推理</strong>：<code>uv run python codes/step3_openvla/run_openvla_libero.py</code></li><li><strong>观察</strong>：终端打印每步动作，注意 gripper 值在接近物体时从 1.0（开）变为 -1.0（关）</li></ol></div>'+
-    '<details><summary>展开查看 run_openvla_libero.py 完整代码</summary><div class="details-body"><pre><code>#!/usr/bin/env python3\n"""OpenVLA 7B + LIBERO-Spatial 零样本推理闭环"""\nimport torch\nimport numpy as np\nfrom PIL import Image\nfrom transformers import AutoModelForVision2Seq, AutoProcessor\nfrom libero.libero import benchmark\n\n# ===== 1. 加载模型 =====\nDEVICE = "cuda" if torch.cuda.is_available() else "cpu"\nMODEL_ID = "openvla/openvla-7b"\n\nprint(f"加载 OpenVLA 到 {DEVICE}...")\nmodel = AutoModelForVision2Seq.from_pretrained(\n    MODEL_ID,\n    torch_dtype=torch.float16 if DEVICE == "cuda" else torch.float32,\n    device_map="auto",\n    trust_remote_code=True,\n)\nprocessor = AutoProcessor.from_pretrained(MODEL_ID)\n\n# ===== 2. 加载 LIBERO 任务 =====\nbenchmark_dict = benchmark.get_benchmark_dict()\ntask_suite = benchmark_dict["libero_spatial"]()\ntask = task_suite.get_task(0)\n\nenv_args = {\n    "task": task,\n    "bddl_file": task.bddl_file,\n    "camera_heights": 224,\n    "camera_widths": 224,\n}\nenv = task_suite.get_env(task_id=0, env_args=env_args)\n\nprint(f"\n任务: {task.name}")\nprint(f"指令: {task.language_instruction}")\n\n# ===== 3. 推理循环 =====\nNUM_BINS = 256\nBIN_CENTERS = np.linspace(-1.0, 1.0, NUM_BINS)\n\nobs = env.reset()\nmax_steps = 30\n\nfor step in range(max_steps):\n    # ── 图像预处理 ──\n    image = Image.fromarray(obs).convert("RGB")\n\n    # ── 构建 prompt ──\n    prompt = f"Task: {task.language_instruction}. Bot: In: Im"\n\n    # ── 模型推理 ──\n    inputs = processor(\n        images=image,\n        text=prompt,\n        return_tensors="pt",\n    ).to(DEVICE)\n\n    with torch.no_grad():\n        outputs = model.generate(\n            **inputs,\n            max_new_tokens=8,\n            do_sample=False,\n        )\n\n    # ── Token → 连续动作 ──\n    new_tokens = outputs[0, inputs["input_ids"].shape[1]:]\n    action = np.array([\n        BIN_CENTERS[new_tokens[i].item() % NUM_BINS]\n        for i in range(7)\n    ])\n\n    # ── 执行动作 ──\n    obs, reward, done, info = env.step(action)\n\n    if step % 5 == 0 or done:\n        d = action\n        print(f"Step {step:2d} | Δxyz=({d[0]:+.3f},{d[1]:+.3f},{d[2]:+.3f}) "\n              f"| Δrpy=({d[3]:+.3f},{d[4]:+.3f},{d[5]:+.3f}) "\n              f"| gripper={d[6]:+.3f} | reward={reward:.2f}")\n\n    if done:\n        print(f"\n✅ 任务完成于 step {step}")\n        break\n\nprint("\n推理结束。")\nprint(f"零样本成功率 = {1.0 if done else 0.0} (1 个任务)")\nprint("提示: 运行全部 10 个 LIBERO-Spatial 任务来统计真正的成功率")</code></pre></div></details>'+
-    '<div class="callout"><div class="lb">💡 预期结果</div><p style="margin:0">OpenVLA 在 LIBERO-Spatial 10 个任务上的零样本成功率约 <strong>60-80%</strong>。简单任务（把碗放到盘子上）几乎 100%，复杂任务（把字母方块放进烤面包机）可能失败。失败不代表模型"不懂"——可能是指令歧义、视觉遮挡、或动作精度不够。</p></div>'+
-    '</section>'+
+        '<section><h3>3.5 实操：完整部署与调试过程</h3>'+
+    '<p>理论讲完了，该动手了。本节记录了一次<strong>真实的 VLA 部署过程</strong>——从选模型到跑通 10 个任务，中间经历了 <strong>8 轮调试、5 个关键修复</strong>。这些坑你大概率也会遇到。</p>'+
 
-    '<section><h3>3.6 理解输出：动作是如何"算"出来的？</h3>'+
-    '<p>你已经看了 token→action 的代码，但背后有一个关键问题：<strong>LLaMA 输出的 token ID，和 256 桶的桶索引是什么关系？</strong></p>'+
-    '<p>OpenVLA 的做法非常巧妙：</p>'+
-    '<ol style="padding-left:1.5em;line-height:2.2"><li>LLaMA 的词表有 32000 个 token（正常的文本 token）</li><li>OpenVLA 额外加了 <strong>7×256 = 1792 个"动作 token"</strong> 到词表中</li><li>这些动作 token 的 ID 范围是 [32000, 33792)</li><li>token ID = 32000 + dim_idx × 256 + bucket_idx</li><li>所以 token ID 除以 256 的商是<strong>维度索引</strong>，余数是<strong>桶索引</strong></li></ol>'+
-    '<table><thead><tr><th>Token ID</th><th>含义</th><th>维度</th><th>桶索引</th><th>连续值</th></tr></thead><tbody>'+
-    '<tr><td>32000</td><td>Δx 第 0 桶</td><td>0 (Δx)</td><td>0</td><td>-1.0 (向左最快)</td></tr>'+
-    '<tr><td>32128</td><td>Δx 第 128 桶</td><td>0 (Δx)</td><td>128</td><td>~0.0 (不动)</td></tr>'+
-    '<tr><td>32255</td><td>Δx 第 255 桶</td><td>0 (Δx)</td><td>255</td><td>+1.0 (向右最快)</td></tr>'+
-    '<tr><td>33536</td><td>gripper 第 128 桶</td><td>6 (gripper)</td><td>128</td><td>~0.0 (半开)</td></tr>'+
+    '<h4>3.5.1 模型选择：基础 vs 微调</h4>'+
+    '<p>这是<strong>整个部署过程中最重要的一步</strong>，也是我们踩的第一个坑。</p>'+
+    '<table><thead><tr><th></th><th>基础模型</th><th>微调模型</th></tr></thead><tbody>'+
+    '<tr><td><strong>HuggingFace</strong></td><td><code>openvla/openvla-7b</code></td><td><code>openvla-7b-finetuned-libero-spatial</code></td></tr>'+
+    '<tr><td><strong>大小</strong></td><td>15 GB</td><td>15.1 GB（完整合并权重）</td></tr>'+
+    '<tr><td><strong>适用机器人</strong></td><td>WidowX (BridgeData V2)</td><td>Panda (LIBERO 仿真)</td></tr>'+
+    '<tr><td><strong>LIBERO 成功率</strong></td><td>0%（不认识 Panda）</td><td>84.7%（官方）</td></tr>'+
     '</tbody></table>'+
-    '<p>这就是 §1.5 讲的"动作离散化与 LLM Token 统一"在 OpenVLA 中的具体实现。LLaMA 的损失函数、注意力机制、自回归生成——全部原封不动地复用了语言模型的框架。</p>'+
+    '<div class="callout warn"><div class="lb"> 第 1 号坑：模型选错 = 5 轮白跑</div><p style="margin:0">OpenVLA 官方页面明确写着：WidowX & Google 机器人是 zero-shot，<strong>Franka Panda 需要微调</strong>。我们一开始用基础模型跑了 5 轮全部 0%，因为模型根本不认识 Panda 机械臂和 LIBERO 场景。</p></div>'+
+
+    '<h4>3.5.2 四个必须对齐的配置</h4>'+
+    '<table><thead><tr><th>配置项</th><th>错误值</th><th>正确值</th><th>为什么</th></tr></thead><tbody>'+
+    '<tr><td><strong>模型</strong></td><td><code>openvla-7b</code></td><td><code>openvla-7b-finetuned-libero-spatial</code></td><td>微调版才有 LIBERO 知识</td></tr>'+
+    '<tr><td><strong>unnorm_key</strong></td><td><code>"bridge_orig"</code></td><td><code>"libero_spatial"</code></td><td>反归一化统计量匹配训练数据</td></tr>'+
+    '<tr><td><strong>图像旋转</strong></td><td>无</td><td><code>img[::-1, ::-1]</code> (180)</td><td>训练数据做了 180 旋转！</td></tr>'+
+    '<tr><td><strong>center_crop</strong></td><td><code>False</code></td><td><code>True</code></td><td>训练时用了随机裁剪增强</td></tr>'+
+    '</tbody></table>'+
+    '<p>完整推理脚本：<a href="https://github.com/howe12/vla-course/blob/main/codes/step3_openvla/run_openvla_libero.py" target="_blank">GitHub</a></p>'+
+
     '</section>'+
 
-    '<section><h3>📝 本章小结</h3><div class="card"><div class="card-label">带走这几条</div><ol style="padding-left:1.5em;line-height:2.1"><li><strong>OpenVLA = SigLIP ViT + LLaMA 2 7B + 7×256 动作头</strong></li><li><strong>推理管线</strong>：图像 → ViT 编码 → 196 个视觉 token + 语言 token → LLaMA 自回归 → 8 个动作 token → 桶解码 → 7 维连续动作</li><li><strong>Token→Action</strong>：Token ID 的商=维度索引，余数=256 桶索引，桶中心 = -1 + 索引/255×2</li><li><strong>INT4 量化</strong>：7B 模型 → ~5GB 显存，RTX 2060 也能跑，推理 ~40-80ms/步</li><li><strong>零样本能力</strong>：OpenVLA 在 LIBERO 上无需微调即可获得 60-80% 成功率</li></ol></div>'+
+    '<section><h3>3.6 调试复盘：8 轮尝试的教训</h3>'+
+    '<p>这是本章<strong>最有价值的部分</strong>——8 轮失败的完整记录。</p>'+
 
-    '<h4>🤔 思考题</h4><ol style="padding-left:1.5em;line-height:2.2"><li>OpenVLA 的 token ID 编码方案中，为什么能用"商=维度"、"余数=桶"？这要求 256 和 7 满足什么数学条件？</li><li>如果想让 OpenVLA 控制一个 14-DOF 的双臂机器人（7+7），token 编码方案需要怎么改？</li><li>INT4 量化会损失什么？在 §3.5 的 LIBERO 实验中，如果你跑 FP16 和 INT4 推理各 10 次，预期成功率会有差异吗？为什么？</li></ol>';
-}
+    '<table><thead><tr><th>轮次</th><th>改动</th><th>结果</th><th>根因</th></tr></thead><tbody>'+
+    '<tr><td><strong>1</strong></td><td>基础模型 + bridge_orig</td><td>0%</td><td>模型不认识 Panda</td></tr>'+
+    '<tr><td><strong>2</strong></td><td>换 fractal unnorm</td><td>0%</td><td>统计量不匹配</td></tr>'+
+    '<tr><td><strong>3</strong></td><td>OSC_POSE 控制器</td><td>0%</td><td>控制器对，动作不对</td></tr>'+
+    '<tr><td><strong>4</strong></td><td>OffScreenRenderEnv + 旋转</td><td>0%</td><td>仍缺微调模型</td></tr>'+
+    '<tr><td><strong>5</strong></td><td>添加 OSC 归一化</td><td>0%</td><td>误加：动作已 OSC 范围</td></tr>'+
+    '<tr><td><strong>6</strong></td><td>微调模型 + 移除归一化</td><td>0%</td><td>缺 180 旋转！</td></tr>'+
+    '<tr><td><strong>7</strong></td><td>恢复 OSC 归一化</td><td>0%</td><td>截断 + 缺旋转</td></tr>'+
+    '<tr><td><strong>8</strong></td><td>全部对齐官方管道</td><td><strong>100%</strong></td><td>微调模型 + 正确配置</td></tr>'+
+    '</tbody></table>'+
+
+    '<h4>三大致命陷阱</h4>'+
+    '<div class="card"><div class="card-label">陷阱 1：图像预处理 = 模型的眼睛</div>'+
+    '<p>官方 <code>get_libero_image()</code> 做了 <code>img[::-1, ::-1]</code>（180 旋转）。<strong>移除旋转后模型看到颠倒的世界</strong>——碗在左边，它以为在右边。</p></div>'+
+
+    '<div class="card"><div class="card-label">陷阱 2：动作空间误解</div>'+
+    '<p>LIBERO 训练数据的动作 <strong>已</strong>在 OSC [-1,+1] 范围。<code>predict_action</code> 输出可直接用，<strong>不需要</strong>再归一化。</p></div>'+
+
+    '<div class="card"><div class="card-label">陷阱 3：基础设施</div>'+
+    '<p>L40 PVC 50GB，两个模型 30GB。必须删旧下新。国内需 HF 镜像。离线部署需修复 <code>auto_map</code>。</p></div>'+
+
+    '</section>'+
+
+    '<section><h3>3.7 最终成果：10/10 全部通过</h3>'+
+    '<p>所有修复就位后，L40 GPU 上 <strong>257 秒</strong>完成 10 个 LIBERO-Spatial 任务：</p>'+
+    '<pre><code>============================================================
+评估汇总
+============================================================
+  总任务数: 10      成功: 10      失败: 0
+  成功率:   100%    总耗时:   257s</code></pre>'+
+
+    '<h4>Task 0 推理过程</h4>'+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:16px 0">'+
+    '<figure style="flex:1;min-width:180px;margin:0"><img src="https://raw.githubusercontent.com/howe12/vla-course/main/codes/step3_openvla/_screenshots/task00_step000.png" style="width:100%;border-radius:6px" loading="lazy"><figcaption style="font-size:.75rem;color:#7f8c8d;text-align:center;margin-top:4px">Step 0: 初始场景</figcaption></figure>'+
+    '<figure style="flex:1;min-width:180px;margin:0"><img src="https://raw.githubusercontent.com/howe12/vla-course/main/codes/step3_openvla/_screenshots/task00_step040.png" style="width:100%;border-radius:6px" loading="lazy"><figcaption style="font-size:.75rem;color:#7f8c8d;text-align:center;margin-top:4px">Step 40: 接近目标</figcaption></figure>'+
+    '<figure style="flex:1;min-width:180px;margin:0"><img src="https://raw.githubusercontent.com/howe12/vla-course/main/codes/step3_openvla/_screenshots/task00_step079.png" style="width:100%;border-radius:6px" loading="lazy"><figcaption style="font-size:.75rem;color:#7f8c8d;text-align:center;margin-top:4px">Step 79: 任务完成</figcaption></figure>'+
+    '</div>'+
+
+    '<h4>更多任务场景</h4>'+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:16px 0">'+
+    '<figure style="flex:1;min-width:180px;margin:0"><img src="https://raw.githubusercontent.com/howe12/vla-course/main/codes/step3_openvla/_screenshots/task03_step000.png" style="width:100%;border-radius:6px" loading="lazy"><figcaption style="font-size:.75rem;color:#7f8c8d;text-align:center">Task 3: 碗在饼干盒上</figcaption></figure>'+
+    '<figure style="flex:1;min-width:180px;margin:0"><img src="https://raw.githubusercontent.com/howe12/vla-course/main/codes/step3_openvla/_screenshots/task07_step000.png" style="width:100%;border-radius:6px" loading="lazy"><figcaption style="font-size:.75rem;color:#7f8c8d;text-align:center">Task 7: 碗在炉子上</figcaption></figure>'+
+    '<figure style="flex:1;min-width:180px;margin:0"><img src="https://raw.githubusercontent.com/howe12/vla-course/main/codes/step3_openvla/_screenshots/task09_step000.png" style="width:100%;border-radius:6px" loading="lazy"><figcaption style="font-size:.75rem;color:#7f8c8d;text-align:center">Task 9: 碗在木柜上</figcaption></figure>'+
+    '</div>'+
+    '</section>'+
+
+    '<section><h3>3.8 部署检查清单</h3>'+
+    '<div class="card"><div class="card-label">每次部署前逐项确认</div>'+
+    '<ol style="padding-left:1.5em;line-height:2.2">'+
+    '<li>模型是基础版还是微调版？</li>'+
+    '<li><code>unnorm_key</code> 与 <code>model.norm_stats</code> 匹配？</li>'+
+    '<li>图像预处理与训练一致？</li>'+
+    '<li>动作范围：[-1,+1] 还是物理值？</li>'+
+    '<li>夹爪约定正确？</li>'+
+    '<li><code>trust_remote_code=True</code>？</li>'+
+    '<li>磁盘空间足够？</li>'+
+    '<li>Python 3.10？</li>'+
+    '</ol></div>'+
+    '</section>'+
+
+    '<section><h3>3.9 理解输出：动作的 token 编码</h3>'+
+    '<p>LLaMA 输出的 token ID 和 256 桶索引的关系：</p>'+
+    '<ol style="padding-left:1.5em;line-height:2.2"><li>LLaMA 词表有 32000 个文本 token</li><li>OpenVLA 额外加了 <strong>7x256 = 1792 个动作 token</strong></li><li>token ID = 32000 + dim x 256 + bucket</li><li>商 = 维度索引，余数 = 桶索引</li></ol>'+
+    '<table><thead><tr><th>Token ID</th><th>维度</th><th>桶</th><th>连续值</th></tr></thead><tbody>'+
+    '<tr><td>32000</td><td>0 (x)</td><td>0</td><td>-1.0</td></tr>'+
+    '<tr><td>32128</td><td>0 (x)</td><td>128</td><td>~0.0</td></tr>'+
+    '<tr><td>32255</td><td>0 (x)</td><td>255</td><td>+1.0</td></tr>'+
+    '</tbody></table>'+
+    '</section>'+
+
+    '<section><h3>本章小结</h3><div class="card"><div class="card-label">带走这几条</div><ol style="padding-left:1.5em;line-height:2.1"><li><strong>OpenVLA = SigLIP ViT + LLaMA 2 7B + 7x256 动作头</strong></li><li><strong>基础模型 微调模型</strong>：Panda 机器人必须用 LIBERO 微调版</li><li><strong>三对齐</strong>：unnorm_key 对齐数据、图像预处理对齐训练、动作空间对齐控制器</li><li><strong>8 轮调试教会我们</strong>：一次只改一个变量，先对齐官方管道再调参</li></ol></div>'+
+
+    '<h4>思考题</h4><ol style="padding-left:1.5em;line-height:2.2"><li>为什么基础模型在 LIBERO 上成功率为 0%？如果换一个也用 Panda 臂的数据集微调，能直接迁移吗？</li><li>180 图像旋转对模型推理的影响有多大？设计实验验证。</li><li>如果要把 OpenVLA 部署到 Gemini 真机上（7），需要改哪些配置？</li></ol>'+
 function r_ch4(area,ch){
   area.innerHTML=
     '<div class="transition-note"><strong>🔄 从 §3 的 OpenVLA 推理出发</strong> 你已经用 OpenVLA 在本地跑通了 VLA 推理。但 OpenVLA 是拿别人训好的权重——接下来三章要<strong>自己训练 VLA 模型</strong>。训练需要 GPU，而且最好是 40GB+ 显存的大卡。本章把 L40 云端 GPU 环境搭好，让后续的 SmolVLA（§5）和 Pi0（§6）训练"开箱即用"。</div>'+
