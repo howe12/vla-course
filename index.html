@@ -239,7 +239,7 @@ function render(chapterId){
 
   area.innerHTML = '';
   const renderers = {
-    ch1: r_ch1, ch2: r_ch2, ch3: r_ch3, ch4: r_ch4,
+    ch1: r_ch1, ch2: r_ch2, ch3: r_ch4, ch4: r_ch3,
     ch5: r_ch5, ch6: r_ch6, ch7: r_ch7, ch8: r_ch8
   };
   const fn = renderers[chapterId];
@@ -718,98 +718,6 @@ function placeholder(area,ch,detail){
     '<p style="text-align:center;color:var(--muted);padding:60px 0">📝 本章内容编写中——将结合 <strong>every-embodied-course 第16章</strong> + <strong>实训指导书 07 系列</strong> + <strong>md_docs_backup ManipDojo</strong> 三块内容。</p>';
 }
 
-function r_ch4(area,ch){
-  area.innerHTML=
-    '<div class="transition-note"><strong>🔄 从 §1-§2 的理论和仿真基础出发</strong> 模型推理和训练都需要 GPU。OpenVLA 7B 推理要 ~14GB 显存，SmolVLA/Pi0 训练要 16-40GB——消费级 GPU 不够用。本章把 L40 云端 GPU 环境搭好，让后续的 OpenVLA 推理（§4）、SmolVLA 训练（§5）和 Pi0 训练（§6）全部"开箱即用"。</div>'+
-    '<div class="ch-header"><div class="ch-num">第 '+ch.num+' 章</div><h2>'+ch.title+'</h2><p class="ch-desc">'+ch.desc+'</p></div>'+
-    '<div class="callout tip"><div class="lb">🎯 学习目标</div><ul style="margin:8px 0 0 1.2em;line-height:1.9"><li>SSH 免密登录 L40 云端 GPU 服务器</li><li>理解 L40 的硬件配置和适用场景（44GB 显存 / 海外机房）</li><li>安装 CUDA Toolkit + PyTorch + 核心依赖</li><li>掌握 scp/rsync 文件传输和 tmux 持久会话</li><li>跑通 GPU 验证脚本，确认环境可用于后续训练</li></ul></div>'+
-    '<div class="callout"><div class="lb">📍 本章定位</div><p style="margin:0">本章是<strong>算力基础设施</strong>。§4 OpenVLA 推理（需 ~14GB）、§5 SmolVLA 训练（450M, ~6h）、§6 Pi0 训练（3B, ~20h）都需要 GPU。L40 的 44GB 显存可以同时覆盖这三个模型——装好一次环境，后续三章都不用再碰配置。</p></div>'+
-
-    '<section><h3>4.1 为什么选 L40？</h3>'+
-    '<p>训练 VLA 模型对 GPU 有硬性要求：OpenVLA 7B 的 LoRA 微调需要 20-30GB，SmolVLA 全量训练需要 16-24GB，Pi0 需要 30-40GB。消费级显卡（RTX 3090 24GB / 4060 8GB）只能做推理，训练捉襟见肘。</p>'+
-    '<table><thead><tr><th>GPU</th><th>显存</th><th>SmolVLA 训练</th><th>Pi0 训练</th><th>价格</th></tr></thead><tbody>'+
-    '<tr><td><strong>L40</strong></td><td>44 GB</td><td>✅ batch=64, ~6h</td><td>✅ batch=16, ~20h</td><td>~$0.80/h</td></tr>'+
-    '<tr><td>A100</td><td>80 GB</td><td>✅ batch=128</td><td>✅ batch=64</td><td>~$2.50/h</td></tr>'+
-    '<tr><td>RTX 3090</td><td>24 GB</td><td>⚠️ batch=8</td><td>❌ OOM</td><td>自有硬件</td></tr>'+
-    '<tr><td>RTX 4060</td><td>8 GB</td><td>❌ OOM</td><td>❌ OOM</td><td>自有硬件</td></tr>'+
-    '</tbody></table>'+
-    '<div class="card"><div class="card-label">🔑 L40 的三个关键优势</div><ol style="padding-left:1.5em;line-height:2"><li><strong>44GB 显存</strong>：正好卡在"够用"的甜点——SmolVLA 可以开大 batch，Pi0 刚好能跑</li><li><strong>海外机房</strong>：直连 HuggingFace / GitHub，不用配镜像、不用翻墙，模型下载满速</li><li><strong>性价比</strong>：$0.80/h 是 A100 的三分之一，训一晚上不到 $10</li></ol></div>'+
-    '</section>'+
-
-
-    '<section><h3>4.2 SSH 连接与免密登录</h3>'+
-    '<p>L40 的 SSH 连接信息（已记录在你的记忆中）：</p>'+
-    '<pre><code># SSH 连接\nssh -p 30334 root@120.209.70.195\n\n# 设置免密登录（本机执行一次）\nssh-copy-id -p 30334 root@120.209.70.195\n\n# 之后直接连，无需密码\nssh -p 30334 root@120.209.70.195</code></pre>'+
-    '<h4>推荐：配置 SSH config 别名</h4>'+
-    '<pre><code># 在本机 ~/.ssh/config 中添加\nHost l40\n    HostName 120.209.70.195\n    Port 30334\n    User root\n    IdentityFile ~/.ssh/id_rsa\n\n# 之后只需\nssh l40</code></pre>'+
-    '<div class="callout warn"><div class="lb">⚠️ L40 是手动开关机</div><p style="margin:0">L40 通过云控制台手动开关机，不使用时记得关机（按小时计费）。开机后需要等 1-2 分钟系统启动。如果 SSH 连不上，先去云控制台确认机器状态。</p></div>'+
-    '</section>'+
-
-
-    '<section><h3>4.3 硬件与环境概览</h3>'+
-    '<p>登录 L40 后，先确认硬件配置：</p>'+
-    '<pre><code># 查看 GPU\nnvidia-smi\n# 应输出: NVIDIA L40, 46068 MiB\n\n# 查看 CUDA 版本\nnvcc --version\n# 应输出: CUDA 12.x\n\n# 查看磁盘\n# 工程路径: /root/gpufree-data/habitat-lab-edu/（PVC 持久化）\ndf -h /root/gpufree-data</code></pre>'+
-    '<p>L40 的核心硬件配置：</p>'+
-    '<table><thead><tr><th>硬件</th><th>规格</th></tr></thead><tbody>'+
-    '<tr><td><strong>GPU</strong></td><td>NVIDIA L40, 48GB 显存, Ada Lovelace 架构</td></tr>'+
-    '<tr><td><strong>CUDA</strong></td><td>12.x</td></tr>'+
-    '<tr><td><strong>CPU</strong></td><td>Intel Xeon, ~16 vCPU</td></tr>'+
-    '<tr><td><strong>RAM</strong></td><td>60GB+</td></tr>'+
-    '<tr><td><strong>磁盘</strong></td><td>PVC 持久化存储, /root/gpufree-data/</td></tr>'+
-    '</tbody></table>'+
-    '<div class="callout"><div class="lb">📍 PVC 持久化存储</div><p style="margin:0">L40 的 <code>/root/gpufree-data/</code> 是 PVC 持久化卷——<strong>关机不会丢数据</strong>。训练 checkpoints、下载的模型权重、实验代码都应该放在这个目录下。但注意：<strong>Git 提交还是要 push</strong>——PVC 是本机的持久化，不是远程备份。</p></div>'+
-    '</section>'+
-
-
-    '<section><h3>4.4 Python 环境配置</h3>'+
-    '<p>L40 上已有 Python 3.9 环境和 CUDA。本章用 <strong>uv</strong> 管理项目依赖，与本机 §2 的配置保持一致：</p>'+
-    '<pre><code># L40 上执行（首次配置）\n# 1. 确认 Python\npython3 --version  # Python 3.9.x\n\n# 2. 安装 uv（如果没有）\ncurl -LsSf https://astral.sh/uv/install.sh | sh\nsource ~/.cargo/env\n\n# 3. 创建 vla-course 工程目录\nmkdir -p /root/gpufree-data/vla-course\ncd /root/gpufree-data/vla-course\n\n# 4. 初始化 uv 项目\nuv init\n\n# 5. 安装 PyTorch（CUDA 12.x）\nuv pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121\n\n# 6. 安装 VLA 训练核心依赖\nuv pip install transformers accelerate datasets\nuv pip install peft bitsandbytes  # LoRA + 量化</code></pre>'+
-    '<h4>验证 GPU 可用</h4>'+
-    '<pre><code>uv run python -c "\nimport torch\nprint(f\'PyTorch: {torch.__version__}\')\nprint(f\'CUDA available: {torch.cuda.is_available()}\')\nprint(f\'GPU: {torch.cuda.get_device_name(0)}\')\nprint(f\'VRAM: {torch.cuda.get_device_properties(0).total_mem / 1024**3:.1f} GB\')\n"\n# 预期输出:\n# PyTorch: 2.x.x\n# CUDA available: True\n# GPU: NVIDIA L40\n# VRAM: 44.3 GB</code></pre>'+
-    '</section>'+
-
-
-    '<section><h3>4.5 文件传输：本机 ↔ L40</h3>'+
-    '<p>课程代码在本机开发，训练在 L40 上跑。需要可靠的文件同步方案：</p>'+
-    '<pre><code># 方式 1：scp（单文件/小目录）\n# 本机 → L40\nscp -P 30334 /develop/vla-course/codes/step5_smolvla/train.py root@120.209.70.195:/root/gpufree-data/vla-course/\n\n# L40 → 本机（下载 checkpoint）\nscp -P 30334 root@120.209.70.195:/root/gpufree-data/vla-course/ckpt/best.pt /develop/vla-course/ckpt/</code></pre>'+
-    '<pre><code># 方式 2：rsync（大目录、增量同步、推荐）\n# 本机 → L40（只传变化的文件）\nrsync -avz -e "ssh -p 30334" \\\n  /develop/vla-course/codes/ \\\n  root@120.209.70.195:/root/gpufree-data/vla-course/codes/\n\n# L40 → 本机（下载训练产物）\nrsync -avz -e "ssh -p 30334" \\\n  root@120.209.70.195:/root/gpufree-data/vla-course/outputs/ \\\n  /develop/vla-course/outputs/</code></pre>'+
-    '<div class="card"><div class="card-label">🔑 scp vs rsync</div><p><strong>scp</strong> 适合传单个文件（模型权重、checkpoint）。<strong>rsync</strong> 适合同步整个目录（代码、数据集），只传变化的文件，中断后可续传。课程后续的"本机编辑 → rsync 推送 → L40 训练 → rsync 拉回"工作流基于 rsync。</p></div>'+
-    '</section>'+
-
-
-    '<section><h3>4.6 tmux：让训练在后台跑</h3>'+
-    '<p>训练 SmolVLA 需要 ~6 小时，Pi0 需要 ~20 小时。SSH 断开会导致前台进程被杀。<strong>tmux</strong> 让训练会话在后台持久运行：</p>'+
-    '<pre><code># 创建新会话\nssh l40\ntmux new -s train\n\n# 在 tmux 里启动训练\ncd /root/gpufree-data/vla-course\nuv run python codes/step5_smolvla/train.py\n\n# 断开 tmux（训练继续在后台跑）\nCtrl+B, D\n\n# 重新连接\ntmux attach -t train\n\n# 查看所有会话\ntmux ls</code></pre>'+
-    '<h4>tmux 常用快捷键</h4>'+
-    '<table><thead><tr><th>操作</th><th>快捷键</th></tr></thead><tbody>'+
-    '<tr><td>断开会话</td><td><code>Ctrl+B, D</code></td></tr>'+
-    '<tr><td>新建窗口</td><td><code>Ctrl+B, C</code></td></tr>'+
-    '<tr><td>切换窗口</td><td><code>Ctrl+B, 0-9</code></td></tr>'+
-    '<tr><td>上下滚动</td><td><code>Ctrl+B, [</code> 然后方向键</td></tr>'+
-    '<tr><td>水平分屏</td><td><code>Ctrl+B, "</code></td></tr>'+
-    '<tr><td>垂直分屏</td><td><code>Ctrl+B, %</code></td></tr>'+
-    '</tbody></table>'+
-    '</section>'+
-
-
-    '<section><h3>4.7 GPU 监控：实时看显存和利用率</h3>'+
-    '<p>训练中需要监控 GPU 状态——显存是否 OOM、利用率是否打满：</p>'+
-    '<pre><code># 基础监控（实时刷新）\nwatch -n 1 nvidia-smi\n\n# 更详细的监控（推荐安装 gpustat）\nuv pip install gpustat\ngpustat -i 1  # 每秒刷新\n\n# 输出示例:\n# [0] NVIDIA L40 | 48°C,  85% utilization,  32768 / 46068 MB\n#     pid 12345: python train.py  (32600 MB)</code></pre>'+
-    '<div class="callout warn"><div class="lb">⚠️ 训练中关注</div><ul style="margin:8px 0 0 1.2em;line-height:1.9"><li><strong>显存 (Memory)</strong>：接近 44GB 红线时减小 batch_size</li><li><strong>利用率 (Utilization)</strong>：应该 > 80%，如果 < 50% 可能是数据加载瓶颈</li><li><strong>温度 (Temp)</strong>：L40 正常在 50-70°C，超过 80°C 检查散热</li></ul></div>'+
-    '</section>'+
-
-
-    '<section><h3>4.8 动手实验：初始化 L40 训练环境</h3>'+
-    '<div class="practice-box"><div class="pb-title">🧪 把 L40 环境从头配好</div><ol class="steps"><li><strong>SSH 登录</strong>：<code>ssh -p 30334 root@120.209.70.195</code></li><li><strong>创建工程目录</strong>：<code>mkdir -p /root/gpufree-data/vla-course && cd /root/gpufree-data/vla-course</code></li><li><strong>初始化 uv</strong>：<code>uv init && uv pip install torch --index-url https://download.pytorch.org/whl/cu121</code></li><li><strong>验证 GPU</strong>：<code>uv run python -c "import torch; print(torch.cuda.get_device_name(0))"</code></li><li><strong>启动 tmux</strong>：<code>tmux new -s test</code></li><li><strong>运行 GPU 压测</strong>：<code>uv run python codes/step4_l40/gpu_test.py</code></li></ol></div>'+
-    '<details><summary>展开查看 gpu_test.py（GPU 基准测试脚本）</summary><div class="details-body"><pre><code>#!/usr/bin/env python3\n"""L40 GPU 基准测试 - 验证环境可用、测试算力上限"""\nimport torch\nimport time\n\nprint("=" * 50)\nprint("L40 GPU 基准测试")\nprint("=" * 50)\n\n# 1. 基本信息\nprint(f"\\nPyTorch: {torch.__version__}")\nprint(f"CUDA available: {torch.cuda.is_available()}")\nprint(f"GPU: {torch.cuda.get_device_name(0)}")\n\nprops = torch.cuda.get_device_properties(0)\nprint(f"VRAM: {props.total_mem / 1024**3:.1f} GB")\nprint(f"Compute Capability: {props.major}.{props.minor}")\nprint(f"CUDA Cores: {props.multi_processor_count} SM")\n\n# 2. 矩阵乘法算力测试\nprint("\\n--- 矩阵乘法算力测试 ---")\nfor size in [1024, 2048, 4096, 8192]:\n    a = torch.randn(size, size, device="cuda", dtype=torch.float16)\n    b = torch.randn(size, size, device="cuda", dtype=torch.float16)\n    \n    # 预热\n    for _ in range(5):\n        torch.matmul(a, b)\n    torch.cuda.synchronize()\n    \n    # 计时\n    start = time.time()\n    for _ in range(20):\n        torch.matmul(a, b)\n    torch.cuda.synchronize()\n    elapsed = time.time() - start\n    \n    tflops = 2 * size**3 * 20 / elapsed / 1e12\n    print(f"  {size}x{size} matmul: {elapsed/20*1000:.1f}ms ({tflops:.1f} TFLOPS)")\n\n# 3. 可用显存测试\nprint("\\n--- 显存测试 ---")\nfor frac in [0.25, 0.5, 0.75, 0.9]:\n    try:\n        total = torch.cuda.get_device_properties(0).total_mem\n        size = int(total * frac) // 4  # float32\n        x = torch.zeros(size, device="cuda")\n        used = torch.cuda.memory_allocated() / 1024**3\n        print(f"  分配 {frac*100:.0f}% 显存: {used:.1f} GB OK")\n        del x\n        torch.cuda.empty_cache()\n    except RuntimeError as e:\n        print(f"  分配 {frac*100:.0f}% 显存: OOM")\n\nprint("\\nGPU 基准测试完成！")\nprint("L40 环境已就绪，可以开始下一步训练。")</code></pre></div></details>'+
-    '<p>跑通这个实验后，L40 环境就完整配置好了。§5 的 SmolVLA 训练脚本直接 scp 上去就能跑。</p>'+
-    '</section>'+
-
-
-    '<section><h3>📝 本章小结</h3><div class="card"><div class="card-label">带走这几条</div><ol style="padding-left:1.5em;line-height:2.1"><li><strong>L40 的 44GB 显存</strong>恰好覆盖 SmolVLA (16-24GB) 和 Pi0 (30-40GB) 的训练需求</li><li><strong>SSH 免密 + config 别名</strong>：一行 <code>ssh l40</code> 连接，不输密码</li><li><strong>PVC 持久化</strong>：<code>/root/gpufree-data/</code> 关机不丢数据，checkpoint 放这里</li><li><strong>uv 统一管理</strong>：本机和 L40 用同一套依赖方案，避免版本差异</li><li><strong>rsync + tmux</strong>：代码推送 → tmux 后台训练 → 断开 SSH → 过几小时回来收结果</li></ol></div>'+
-
-    '<h4>🤔 思考题</h4><ol style="padding-left:1.5em;line-height:2.2"><li>如果把 gpu_test.py 在 RTX 4060 (8GB) 上跑，哪个显存分配比例会 OOM？</li><li>rsync 和 scp 都可以传文件——如果一个 10GB 的模型权重已传到 L40 上，你又微调了一下训练脚本（5KB），用什么命令只更新脚本？</li><li>tmux 断开后训练继续跑——但如果你重启了 L40（关机再开机），tmux 会话还在吗？怎么办？</li></ol>';
-};
 function r_ch3(area,ch){
   area.innerHTML=
     '<div class="transition-note"><strong>🔄 从 §2 的仿真环境出发</strong> MuJoCo + LIBERO 已经就绪，随机动作的 Demo 也跑通了。现在把随机数替换为<strong>真正的 VLA 模型</strong>——加载 OpenVLA 7B，让大模型看懂场景、理解指令、输出可以完成任务的机械臂动作。</div>'+
@@ -817,7 +725,7 @@ function r_ch3(area,ch){
     '<div class="callout tip"><div class="lb">🎯 学习目标</div><ul style="margin:8px 0 0 1.2em;line-height:1.9"><li>理解 OpenVLA 的架构：SigLIP ViT + LLaMA 7B + Action Head 的分工</li><li>从 HuggingFace 下载并加载 OpenVLA 7B 模型（FP16 / INT4）</li><li>掌握推理管线：图像预处理 → 多模态前向 → 离散 Token → 连续动作</li><li>掌握推理管线：图像预处理 模型前向 动作解码 环境闭环</li><li>在 LIBERO-Spatial 上运行完整的 VLA 微调模型推理闭环</li></ul></div>'+
     '<div class="callout"><div class="lb">📍 本章定位</div><p style="margin:0">本章是<strong>VLA 推理的起点</strong>。你先学会"用"模型——加载现成的 OpenVLA 权重，理解它如何从像素走到关节角。第 5 章（SmolVLA）和第 6 章（Pi0）会教你"训"模型。第 3 章（L40）提供算力环境。</p></div>'+
 
-    '<section><h3>3.1 OpenVLA 是什么？</h3>'+
+    '<section><h3>4.1 OpenVLA 是什么？</h3>'+
     '<p><strong>OpenVLA</strong>（2024.3）是 Stanford HAI 和 UIUC 联合发布的<strong>首个开源 7B VLA 模型</strong>。它的发布标志着 VLA 从"闭源封闭"走向"开源开放"——权重、代码、推理框架全部公开，Apache 2.0 协议可商用。</p>'+
     '<table><thead><tr><th>特性</th><th>OpenVLA</th><th>RT-2（对比）</th></tr></thead><tbody>'+
     '<tr><td><strong>参数量</strong></td><td>7B</td><td>55B</td></tr>'+
@@ -831,7 +739,7 @@ function r_ch3(area,ch){
     '</section>'+
 
 
-    '<section><h3>3.2 OpenVLA 架构详解</h3>'+
+    '<section><h3>4.2 OpenVLA 架构详解</h3>'+
     '<p>OpenVLA 遵循"视觉编码器 → 语言基座 → 动作头"三阶段范式，与 §1 讲的理论架构完全对应：</p>'+
     '<div style="background:#020617;border-radius:12px;padding:16px;margin:16px 0;overflow-x:auto">'+
     '<img src="openvla-architecture.svg" alt="OpenVLA 7B 架构图" style="width:100%;max-width:1050px;display:block">'+
@@ -846,7 +754,7 @@ function r_ch3(area,ch){
     '</section>'+
 
 
-    '<section><h3>3.3 模型下载与加载</h3>'+
+    '<section><h3>4.3 模型下载与加载</h3>'+
     '<p>OpenVLA 模型托管在 HuggingFace，约 14GB（FP16）。国内下载可能需要镜像：</p>'+
     '<pre><code># 方案 A：直接下载（推荐，国外网络或代理）\npip install transformers>=4.40 torch>=2.0 accelerate\n\n# 方案 B：HF 镜像（国内网络）\nexport HF_ENDPOINT=https://hf-mirror.com\npip install transformers torch accelerate\n\n# 方案 C：L40 云端（第 3 章）\n# L40 位于海外机房，直连 HuggingFace，无需镜像</code></pre>'+
     '<h4>加载模型（FP16）</h4>'+
@@ -857,7 +765,7 @@ function r_ch3(area,ch){
     '</section>'+
 
 
-    '<section><h3>3.4 推理管线：从像素到关节角</h3>'+
+    '<section><h3>4.4 推理管线：从像素到关节角</h3>'+
     '<p>一次完整的 OpenVLA 推理包含四个步骤。理解每一步，你就能在任何机器人平台上适配它：</p>'+
     '<h4>步骤 1：图像预处理</h4>'+
     '<pre><code>from PIL import Image\nimport numpy as np\n\n# LIBERO 返回的 RGB 数组 (224, 224, 3) uint8\nobs = env.reset()  # numpy uint8\nimage = Image.fromarray(obs).convert("RGB")\n\n# 可选：反归一化到 [0,1]（OpenVLA processor 会自动处理）</code></pre>'+
@@ -871,10 +779,10 @@ function r_ch3(area,ch){
     '</section>'+
 
 
-        '<section><h3>3.5 实操：完整部署与调试过程</h3>'+
+        '<section><h3>4.5 实操：完整部署与调试过程</h3>'+
     '<p>理论讲完了，该动手了。本节记录了一次<strong>真实的 VLA 部署过程</strong>——从选模型到跑通 10 个任务，中间经历了 <strong>8 轮调试、5 个关键修复</strong>。这些坑你大概率也会遇到。</p>'+
 
-    '<h4>3.5.1 模型选择：基础 vs 微调</h4>'+
+    '<h4>4.5.1 模型选择：基础 vs 微调</h4>'+
     '<p>这是<strong>整个部署过程中最重要的一步</strong>，也是我们踩的第一个坑。</p>'+
     '<table><thead><tr><th></th><th>基础模型</th><th>微调模型</th></tr></thead><tbody>'+
     '<tr><td><strong>HuggingFace</strong></td><td><code>openvla/openvla-7b</code></td><td><code>openvla-7b-finetuned-libero-spatial</code></td></tr>'+
@@ -884,7 +792,7 @@ function r_ch3(area,ch){
     '</tbody></table>'+
     '<div class="callout warn"><div class="lb"> 第 1 号坑：模型选错 = 5 轮白跑</div><p style="margin:0">OpenVLA 官方页面明确写着：WidowX & Google 机器人是 zero-shot，<strong>Franka Panda 需要微调</strong>。我们一开始用基础模型跑了 5 轮全部 0%，因为模型根本不认识 Panda 机械臂和 LIBERO 场景。</p></div>'+
 
-    '<h4>3.5.2 四个必须对齐的配置</h4>'+
+    '<h4>4.5.2 四个必须对齐的配置</h4>'+
     '<table><thead><tr><th>配置项</th><th>错误值</th><th>正确值</th><th>为什么</th></tr></thead><tbody>'+
     '<tr><td><strong>模型</strong></td><td><code>openvla-7b</code></td><td><code>openvla-7b-finetuned-libero-spatial</code></td><td>微调版才有 LIBERO 知识</td></tr>'+
     '<tr><td><strong>unnorm_key</strong></td><td><code>"bridge_orig"</code></td><td><code>"libero_spatial"</code></td><td>反归一化统计量匹配训练数据</td></tr>'+
@@ -896,7 +804,7 @@ function r_ch3(area,ch){
     '</section>'+
 
 
-    '<section><h3>3.6 调试复盘：8 轮尝试的教训</h3>'+
+    '<section><h3>4.6 调试复盘：8 轮尝试的教训</h3>'+
     '<p>这是本章<strong>最有价值的部分</strong>——8 轮失败的完整记录。</p>'+
 
     '<table><thead><tr><th>轮次</th><th>改动</th><th>结果</th><th>根因</th></tr></thead><tbody>'+
@@ -923,7 +831,7 @@ function r_ch3(area,ch){
     '</section>'+
 
 
-    '<section><h3>3.7 最终成果：10/10 全部通过</h3>'+
+    '<section><h3>4.7 最终成果：10/10 全部通过</h3>'+
     '<p>所有修复就位后，L40 GPU 上 <strong>257 秒</strong>完成 10 个 LIBERO-Spatial 任务：</p>'+
     '<pre><code>============================================================\n评估汇总\n============================================================\n  总任务数: 10      成功: 10      失败: 0\n  成功率:   100%    总耗时:   257s</code></pre>'+
 
@@ -943,7 +851,7 @@ function r_ch3(area,ch){
     '</section>'+
 
 
-    '<section><h3>3.8 部署检查清单</h3>'+
+    '<section><h3>4.8 部署检查清单</h3>'+
     '<div class="card"><div class="card-label">每次部署前逐项确认</div>'+
     '<ol style="padding-left:1.5em;line-height:2.2">'+
     '<li>模型是基础版还是微调版？</li>'+
@@ -958,7 +866,7 @@ function r_ch3(area,ch){
     '</section>'+
 
 
-    '<section><h3>3.9 理解输出：动作的 token 编码</h3>'+
+    '<section><h3>4.9 理解输出：动作的 token 编码</h3>'+
     '<p>LLaMA 输出的 token ID 和 256 桶索引的关系：</p>'+
     '<ol style="padding-left:1.5em;line-height:2.2"><li>LLaMA 词表有 32000 个文本 token</li><li>OpenVLA 额外加了 <strong>7x256 = 1792 个动作 token</strong></li><li>token ID = 32000 + dim x 256 + bucket</li><li>商 = 维度索引，余数 = 桶索引</li></ol>'+
     '<table><thead><tr><th>Token ID</th><th>维度</th><th>桶</th><th>连续值</th></tr></thead><tbody>'+
@@ -972,6 +880,98 @@ function r_ch3(area,ch){
     '<section><h3>本章小结</h3><div class="card"><div class="card-label">带走这几条</div><ol style="padding-left:1.5em;line-height:2.1"><li><strong>OpenVLA = SigLIP ViT + LLaMA 2 7B + 7x256 动作头</strong></li><li><strong>基础模型 微调模型</strong>：Panda 机器人必须用 LIBERO 微调版</li><li><strong>三对齐</strong>：unnorm_key 对齐数据、图像预处理对齐训练、动作空间对齐控制器</li><li><strong>8 轮调试教会我们</strong>：一次只改一个变量，先对齐官方管道再调参</li></ol></div>'+
 
     '<h4>思考题</h4><ol style="padding-left:1.5em;line-height:2.2"><li>为什么基础模型在 LIBERO 上成功率为 0%？如果换一个也用 Panda 臂的数据集微调，能直接迁移吗？</li><li>180 图像旋转对模型推理的影响有多大？设计实验验证。</li><li>如果要把 OpenVLA 部署到 Gemini 真机上（7），需要改哪些配置？</li></ol>';
+};
+function r_ch4(area,ch){
+  area.innerHTML=
+    '<div class="transition-note"><strong>🔄 从 §1-§2 的理论和仿真基础出发</strong> 模型推理和训练都需要 GPU。OpenVLA 7B 推理要 ~14GB 显存，SmolVLA/Pi0 训练要 16-40GB——消费级 GPU 不够用。本章把 L40 云端 GPU 环境搭好，让后续的 OpenVLA 推理（§4）、SmolVLA 训练（§5）和 Pi0 训练（§6）全部"开箱即用"。</div>'+
+    '<div class="ch-header"><div class="ch-num">第 '+ch.num+' 章</div><h2>'+ch.title+'</h2><p class="ch-desc">'+ch.desc+'</p></div>'+
+    '<div class="callout tip"><div class="lb">🎯 学习目标</div><ul style="margin:8px 0 0 1.2em;line-height:1.9"><li>SSH 免密登录 L40 云端 GPU 服务器</li><li>理解 L40 的硬件配置和适用场景（44GB 显存 / 海外机房）</li><li>安装 CUDA Toolkit + PyTorch + 核心依赖</li><li>掌握 scp/rsync 文件传输和 tmux 持久会话</li><li>跑通 GPU 验证脚本，确认环境可用于后续训练</li></ul></div>'+
+    '<div class="callout"><div class="lb">📍 本章定位</div><p style="margin:0">本章是<strong>算力基础设施</strong>。§4 OpenVLA 推理（需 ~14GB）、§5 SmolVLA 训练（450M, ~6h）、§6 Pi0 训练（3B, ~20h）都需要 GPU。L40 的 44GB 显存可以同时覆盖这三个模型——装好一次环境，后续三章都不用再碰配置。</p></div>'+
+
+    '<section><h3>3.1 为什么选 L40？</h3>'+
+    '<p>训练 VLA 模型对 GPU 有硬性要求：OpenVLA 7B 的 LoRA 微调需要 20-30GB，SmolVLA 全量训练需要 16-24GB，Pi0 需要 30-40GB。消费级显卡（RTX 3090 24GB / 4060 8GB）只能做推理，训练捉襟见肘。</p>'+
+    '<table><thead><tr><th>GPU</th><th>显存</th><th>SmolVLA 训练</th><th>Pi0 训练</th><th>价格</th></tr></thead><tbody>'+
+    '<tr><td><strong>L40</strong></td><td>44 GB</td><td>✅ batch=64, ~6h</td><td>✅ batch=16, ~20h</td><td>~$0.80/h</td></tr>'+
+    '<tr><td>A100</td><td>80 GB</td><td>✅ batch=128</td><td>✅ batch=64</td><td>~$2.50/h</td></tr>'+
+    '<tr><td>RTX 3090</td><td>24 GB</td><td>⚠️ batch=8</td><td>❌ OOM</td><td>自有硬件</td></tr>'+
+    '<tr><td>RTX 4060</td><td>8 GB</td><td>❌ OOM</td><td>❌ OOM</td><td>自有硬件</td></tr>'+
+    '</tbody></table>'+
+    '<div class="card"><div class="card-label">🔑 L40 的三个关键优势</div><ol style="padding-left:1.5em;line-height:2"><li><strong>44GB 显存</strong>：正好卡在"够用"的甜点——SmolVLA 可以开大 batch，Pi0 刚好能跑</li><li><strong>海外机房</strong>：直连 HuggingFace / GitHub，不用配镜像、不用翻墙，模型下载满速</li><li><strong>性价比</strong>：$0.80/h 是 A100 的三分之一，训一晚上不到 $10</li></ol></div>'+
+    '</section>'+
+
+
+    '<section><h3>3.2 SSH 连接与免密登录</h3>'+
+    '<p>L40 的 SSH 连接信息（已记录在你的记忆中）：</p>'+
+    '<pre><code># SSH 连接\nssh -p 30334 root@120.209.70.195\n\n# 设置免密登录（本机执行一次）\nssh-copy-id -p 30334 root@120.209.70.195\n\n# 之后直接连，无需密码\nssh -p 30334 root@120.209.70.195</code></pre>'+
+    '<h4>推荐：配置 SSH config 别名</h4>'+
+    '<pre><code># 在本机 ~/.ssh/config 中添加\nHost l40\n    HostName 120.209.70.195\n    Port 30334\n    User root\n    IdentityFile ~/.ssh/id_rsa\n\n# 之后只需\nssh l40</code></pre>'+
+    '<div class="callout warn"><div class="lb">⚠️ L40 是手动开关机</div><p style="margin:0">L40 通过云控制台手动开关机，不使用时记得关机（按小时计费）。开机后需要等 1-2 分钟系统启动。如果 SSH 连不上，先去云控制台确认机器状态。</p></div>'+
+    '</section>'+
+
+
+    '<section><h3>3.3 硬件与环境概览</h3>'+
+    '<p>登录 L40 后，先确认硬件配置：</p>'+
+    '<pre><code># 查看 GPU\nnvidia-smi\n# 应输出: NVIDIA L40, 46068 MiB\n\n# 查看 CUDA 版本\nnvcc --version\n# 应输出: CUDA 12.x\n\n# 查看磁盘\n# 工程路径: /root/gpufree-data/habitat-lab-edu/（PVC 持久化）\ndf -h /root/gpufree-data</code></pre>'+
+    '<p>L40 的核心硬件配置：</p>'+
+    '<table><thead><tr><th>硬件</th><th>规格</th></tr></thead><tbody>'+
+    '<tr><td><strong>GPU</strong></td><td>NVIDIA L40, 48GB 显存, Ada Lovelace 架构</td></tr>'+
+    '<tr><td><strong>CUDA</strong></td><td>12.x</td></tr>'+
+    '<tr><td><strong>CPU</strong></td><td>Intel Xeon, ~16 vCPU</td></tr>'+
+    '<tr><td><strong>RAM</strong></td><td>60GB+</td></tr>'+
+    '<tr><td><strong>磁盘</strong></td><td>PVC 持久化存储, /root/gpufree-data/</td></tr>'+
+    '</tbody></table>'+
+    '<div class="callout"><div class="lb">📍 PVC 持久化存储</div><p style="margin:0">L40 的 <code>/root/gpufree-data/</code> 是 PVC 持久化卷——<strong>关机不会丢数据</strong>。训练 checkpoints、下载的模型权重、实验代码都应该放在这个目录下。但注意：<strong>Git 提交还是要 push</strong>——PVC 是本机的持久化，不是远程备份。</p></div>'+
+    '</section>'+
+
+
+    '<section><h3>3.4 Python 环境配置</h3>'+
+    '<p>L40 上已有 Python 3.9 环境和 CUDA。本章用 <strong>uv</strong> 管理项目依赖，与本机 §2 的配置保持一致：</p>'+
+    '<pre><code># L40 上执行（首次配置）\n# 1. 确认 Python\npython3 --version  # Python 3.9.x\n\n# 2. 安装 uv（如果没有）\ncurl -LsSf https://astral.sh/uv/install.sh | sh\nsource ~/.cargo/env\n\n# 3. 创建 vla-course 工程目录\nmkdir -p /root/gpufree-data/vla-course\ncd /root/gpufree-data/vla-course\n\n# 4. 初始化 uv 项目\nuv init\n\n# 5. 安装 PyTorch（CUDA 12.x）\nuv pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121\n\n# 6. 安装 VLA 训练核心依赖\nuv pip install transformers accelerate datasets\nuv pip install peft bitsandbytes  # LoRA + 量化</code></pre>'+
+    '<h4>验证 GPU 可用</h4>'+
+    '<pre><code>uv run python -c "\nimport torch\nprint(f\'PyTorch: {torch.__version__}\')\nprint(f\'CUDA available: {torch.cuda.is_available()}\')\nprint(f\'GPU: {torch.cuda.get_device_name(0)}\')\nprint(f\'VRAM: {torch.cuda.get_device_properties(0).total_mem / 1024**3:.1f} GB\')\n"\n# 预期输出:\n# PyTorch: 2.x.x\n# CUDA available: True\n# GPU: NVIDIA L40\n# VRAM: 44.3 GB</code></pre>'+
+    '</section>'+
+
+
+    '<section><h3>3.5 文件传输：本机 ↔ L40</h3>'+
+    '<p>课程代码在本机开发，训练在 L40 上跑。需要可靠的文件同步方案：</p>'+
+    '<pre><code># 方式 1：scp（单文件/小目录）\n# 本机 → L40\nscp -P 30334 /develop/vla-course/codes/step5_smolvla/train.py root@120.209.70.195:/root/gpufree-data/vla-course/\n\n# L40 → 本机（下载 checkpoint）\nscp -P 30334 root@120.209.70.195:/root/gpufree-data/vla-course/ckpt/best.pt /develop/vla-course/ckpt/</code></pre>'+
+    '<pre><code># 方式 2：rsync（大目录、增量同步、推荐）\n# 本机 → L40（只传变化的文件）\nrsync -avz -e "ssh -p 30334" \\\n  /develop/vla-course/codes/ \\\n  root@120.209.70.195:/root/gpufree-data/vla-course/codes/\n\n# L40 → 本机（下载训练产物）\nrsync -avz -e "ssh -p 30334" \\\n  root@120.209.70.195:/root/gpufree-data/vla-course/outputs/ \\\n  /develop/vla-course/outputs/</code></pre>'+
+    '<div class="card"><div class="card-label">🔑 scp vs rsync</div><p><strong>scp</strong> 适合传单个文件（模型权重、checkpoint）。<strong>rsync</strong> 适合同步整个目录（代码、数据集），只传变化的文件，中断后可续传。课程后续的"本机编辑 → rsync 推送 → L40 训练 → rsync 拉回"工作流基于 rsync。</p></div>'+
+    '</section>'+
+
+
+    '<section><h3>3.6 tmux：让训练在后台跑</h3>'+
+    '<p>训练 SmolVLA 需要 ~6 小时，Pi0 需要 ~20 小时。SSH 断开会导致前台进程被杀。<strong>tmux</strong> 让训练会话在后台持久运行：</p>'+
+    '<pre><code># 创建新会话\nssh l40\ntmux new -s train\n\n# 在 tmux 里启动训练\ncd /root/gpufree-data/vla-course\nuv run python codes/step5_smolvla/train.py\n\n# 断开 tmux（训练继续在后台跑）\nCtrl+B, D\n\n# 重新连接\ntmux attach -t train\n\n# 查看所有会话\ntmux ls</code></pre>'+
+    '<h4>tmux 常用快捷键</h4>'+
+    '<table><thead><tr><th>操作</th><th>快捷键</th></tr></thead><tbody>'+
+    '<tr><td>断开会话</td><td><code>Ctrl+B, D</code></td></tr>'+
+    '<tr><td>新建窗口</td><td><code>Ctrl+B, C</code></td></tr>'+
+    '<tr><td>切换窗口</td><td><code>Ctrl+B, 0-9</code></td></tr>'+
+    '<tr><td>上下滚动</td><td><code>Ctrl+B, [</code> 然后方向键</td></tr>'+
+    '<tr><td>水平分屏</td><td><code>Ctrl+B, "</code></td></tr>'+
+    '<tr><td>垂直分屏</td><td><code>Ctrl+B, %</code></td></tr>'+
+    '</tbody></table>'+
+    '</section>'+
+
+
+    '<section><h3>3.7 GPU 监控：实时看显存和利用率</h3>'+
+    '<p>训练中需要监控 GPU 状态——显存是否 OOM、利用率是否打满：</p>'+
+    '<pre><code># 基础监控（实时刷新）\nwatch -n 1 nvidia-smi\n\n# 更详细的监控（推荐安装 gpustat）\nuv pip install gpustat\ngpustat -i 1  # 每秒刷新\n\n# 输出示例:\n# [0] NVIDIA L40 | 48°C,  85% utilization,  32768 / 46068 MB\n#     pid 12345: python train.py  (32600 MB)</code></pre>'+
+    '<div class="callout warn"><div class="lb">⚠️ 训练中关注</div><ul style="margin:8px 0 0 1.2em;line-height:1.9"><li><strong>显存 (Memory)</strong>：接近 44GB 红线时减小 batch_size</li><li><strong>利用率 (Utilization)</strong>：应该 > 80%，如果 < 50% 可能是数据加载瓶颈</li><li><strong>温度 (Temp)</strong>：L40 正常在 50-70°C，超过 80°C 检查散热</li></ul></div>'+
+    '</section>'+
+
+
+    '<section><h3>3.8 动手实验：初始化 L40 训练环境</h3>'+
+    '<div class="practice-box"><div class="pb-title">🧪 把 L40 环境从头配好</div><ol class="steps"><li><strong>SSH 登录</strong>：<code>ssh -p 30334 root@120.209.70.195</code></li><li><strong>创建工程目录</strong>：<code>mkdir -p /root/gpufree-data/vla-course && cd /root/gpufree-data/vla-course</code></li><li><strong>初始化 uv</strong>：<code>uv init && uv pip install torch --index-url https://download.pytorch.org/whl/cu121</code></li><li><strong>验证 GPU</strong>：<code>uv run python -c "import torch; print(torch.cuda.get_device_name(0))"</code></li><li><strong>启动 tmux</strong>：<code>tmux new -s test</code></li><li><strong>运行 GPU 压测</strong>：<code>uv run python codes/step4_l40/gpu_test.py</code></li></ol></div>'+
+    '<details><summary>展开查看 gpu_test.py（GPU 基准测试脚本）</summary><div class="details-body"><pre><code>#!/usr/bin/env python3\n"""L40 GPU 基准测试 - 验证环境可用、测试算力上限"""\nimport torch\nimport time\n\nprint("=" * 50)\nprint("L40 GPU 基准测试")\nprint("=" * 50)\n\n# 1. 基本信息\nprint(f"\\nPyTorch: {torch.__version__}")\nprint(f"CUDA available: {torch.cuda.is_available()}")\nprint(f"GPU: {torch.cuda.get_device_name(0)}")\n\nprops = torch.cuda.get_device_properties(0)\nprint(f"VRAM: {props.total_mem / 1024**3:.1f} GB")\nprint(f"Compute Capability: {props.major}.{props.minor}")\nprint(f"CUDA Cores: {props.multi_processor_count} SM")\n\n# 2. 矩阵乘法算力测试\nprint("\\n--- 矩阵乘法算力测试 ---")\nfor size in [1024, 2048, 4096, 8192]:\n    a = torch.randn(size, size, device="cuda", dtype=torch.float16)\n    b = torch.randn(size, size, device="cuda", dtype=torch.float16)\n    \n    # 预热\n    for _ in range(5):\n        torch.matmul(a, b)\n    torch.cuda.synchronize()\n    \n    # 计时\n    start = time.time()\n    for _ in range(20):\n        torch.matmul(a, b)\n    torch.cuda.synchronize()\n    elapsed = time.time() - start\n    \n    tflops = 2 * size**3 * 20 / elapsed / 1e12\n    print(f"  {size}x{size} matmul: {elapsed/20*1000:.1f}ms ({tflops:.1f} TFLOPS)")\n\n# 3. 可用显存测试\nprint("\\n--- 显存测试 ---")\nfor frac in [0.25, 0.5, 0.75, 0.9]:\n    try:\n        total = torch.cuda.get_device_properties(0).total_mem\n        size = int(total * frac) // 4  # float32\n        x = torch.zeros(size, device="cuda")\n        used = torch.cuda.memory_allocated() / 1024**3\n        print(f"  分配 {frac*100:.0f}% 显存: {used:.1f} GB OK")\n        del x\n        torch.cuda.empty_cache()\n    except RuntimeError as e:\n        print(f"  分配 {frac*100:.0f}% 显存: OOM")\n\nprint("\\nGPU 基准测试完成！")\nprint("L40 环境已就绪，可以开始下一步训练。")</code></pre></div></details>'+
+    '<p>跑通这个实验后，L40 环境就完整配置好了。§5 的 SmolVLA 训练脚本直接 scp 上去就能跑。</p>'+
+    '</section>'+
+
+
+    '<section><h3>📝 本章小结</h3><div class="card"><div class="card-label">带走这几条</div><ol style="padding-left:1.5em;line-height:2.1"><li><strong>L40 的 44GB 显存</strong>恰好覆盖 SmolVLA (16-24GB) 和 Pi0 (30-40GB) 的训练需求</li><li><strong>SSH 免密 + config 别名</strong>：一行 <code>ssh l40</code> 连接，不输密码</li><li><strong>PVC 持久化</strong>：<code>/root/gpufree-data/</code> 关机不丢数据，checkpoint 放这里</li><li><strong>uv 统一管理</strong>：本机和 L40 用同一套依赖方案，避免版本差异</li><li><strong>rsync + tmux</strong>：代码推送 → tmux 后台训练 → 断开 SSH → 过几小时回来收结果</li></ol></div>'+
+
+    '<h4>🤔 思考题</h4><ol style="padding-left:1.5em;line-height:2.2"><li>如果把 gpu_test.py 在 RTX 4060 (8GB) 上跑，哪个显存分配比例会 OOM？</li><li>rsync 和 scp 都可以传文件——如果一个 10GB 的模型权重已传到 L40 上，你又微调了一下训练脚本（5KB），用什么命令只更新脚本？</li><li>tmux 断开后训练继续跑——但如果你重启了 L40（关机再开机），tmux 会话还在吗？怎么办？</li></ol>';
 }
 
 function r_ch5(area,ch){
