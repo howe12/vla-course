@@ -261,7 +261,7 @@ function renderHome(){
   area.innerHTML =
     '<div class="ch-header"><div class="ch-num">具身智能 · VLA 专题</div><h2>VLA 从零到部署</h2><p class="ch-desc">Vision-Language-Action · MuJoCo + LeRobot + L40 + Gemini</p></div>'+
     '<div class="callout"><div class="lb">📖 关于本教程</div><p>本教程带你从零开始掌握 <strong>VLA（Vision-Language-Action）</strong>模型——从理论基础、仿真实验、云端训练，到在<strong>双子座 Gemini 机器人</strong>上的真机部署。前置课程：<strong>VLN 视觉语言导航</strong> + <strong>模仿学习（ACT/LeRobot）</strong>。</p><p style="margin-top:8px"><strong>硬件要求</strong>：L40 云端 GPU（训练）+ Gemini 双臂机器人（真机验证）+ 普通电脑（仿真）</p></div>'+
-    '<section><h3>🗺️ 学习路线图</h3><p>从 VLA 是什么出发 → 仿真里跑通 OpenVLA → SmolVLA 轻量训练 → Pi0 扩散模型 → 云端分布式训练 → 真机部署验证 → 竞赛实战。一条<strong>从理论到真机</strong>的完整链路。</p>'+
+    '<section><h3>🗺️ 学习路线图</h3><p>从 VLA 是什么出发 → 搭好 L40 云端算力 → 仿真里跑通 OpenVLA → SmolVLA 轻量训练 → Pi0 扩散模型 → 真机部署验证 → 竞赛实战。一条<strong>从理论到真机</strong>的完整链路。</p>'+
     '<div class="toc-grid">'+cards+'</div></section>'+
     '<section><h3>🛠️ 环境要求</h3><table><thead><tr><th>组件</th><th>要求</th></tr></thead><tbody>'+
     '<tr><td>操作系统</td><td>Ubuntu 20.04/22.04</td></tr>'+
@@ -273,9 +273,9 @@ function renderHome(){
     '</tbody></table></section>'+
     '<section><h3>📋 学习节奏</h3><table><thead><tr><th>阶段</th><th>章节</th><th>主要产出</th></tr></thead><tbody>'+
     '<tr><td>第 1 周</td><td>1 + 2</td><td>理解 VLA 架构，跑通 MuJoCo/LIBERO 仿真</td></tr>'+
-    '<tr><td>第 2 周</td><td>3</td><td>OpenVLA 推理实战，理解 7B VLA 模型</td></tr>'+
-    '<tr><td>第 3 周</td><td>4</td><td>SmolVLA 训练，单卡完成轻量 VLA 微调</td></tr>'+
-    '<tr><td>第 4 周</td><td>5 + 6</td><td>Pi0 扩散 VLA + L40 云端分布式训练</td></tr>'+
+    '<tr><td>第 2 周</td><td>3 + 4</td><td>L40 云端环境搭建 + OpenVLA 推理实战</td></tr>'+
+    '<tr><td>第 3 周</td><td>5</td><td>SmolVLA 训练，单卡完成轻量 VLA 微调</td></tr>'+
+    '<tr><td>第 4 周</td><td>6</td><td>Pi0 扩散 VLA 训练与对比</td></tr>'+
     '<tr><td>第 5 周</td><td>7 + 8</td><td>Gemini 真机部署 + 竞赛实战</td></tr>'+
     '</tbody></table></section>'+
     '<section style="text-align:center;color:var(--muted);font-size:.85rem;padding:20px 0"><p>🏗️ NXROBO 具身智能课程系列</p><p>📝 License: <a href="http://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a></p></section>';
