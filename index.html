@@ -1065,22 +1065,56 @@ function r_ch5(area,ch){
     '</section>'+
 
 
-    '<section><h3>5.5 评估：在 LIBERO 上验证</h3>'+
-    '<p>训练完不能只看 loss——loss 低不代表机器人能完成任务。必须在上游的 LIBERO 仿真中实际跑：</p>'+
-    '<h4>评估脚本</h4>'+
-    '<pre><code># codes/step5_smolvla/eval_libero.py\nimport torch\nimport numpy as np\nfrom PIL import Image\nfrom libero.libero import benchmark\n\n# 加载训练好的模型\nmodel = SmolVLA().to("cuda")\nmodel.load_state_dict(torch.load("outputs/smolvla/best.pt"))\nmodel.eval()\n\n# 加载 LIBERO 测试\nbenchmark_dict = benchmark.get_benchmark_dict()\nresults = {}\n\nfor suite_name in ["libero_spatial", "libero_object", "libero_goal"]:\n    task_suite = benchmark_dict[suite_name]()\n    successes = 0\n    \n    for task_id in range(10):\n        task = task_suite.get_task(task_id)\n        env = task_suite.get_env(task_id, env_args={\n            "task": task, "bddl_file": task.bddl_file,\n            "camera_heights": 224, "camera_widths": 224,\n        })\n        \n        obs = env.reset()\n        done = False\n        for _ in range(30):  # max 30 steps\n            image = Image.fromarray(obs).convert("RGB")\n            image_tensor = torch.from_numpy(\n                np.array(image).transpose(2,0,1) / 255.0\n            ).unsqueeze(0).float().to("cuda")\n            \n            with torch.no_grad():\n                action = model(image_tensor)  # (1, 7)\n            \n            obs, reward, done, info = env.step(action[0].cpu().numpy())\n            if done:\n                break\n        \n        successes += int(done)\n    \n    results[suite_name] = successes / 10\n    print(f"{suite_name}: {successes}/10 = {results[suite_name]:.0%}")\n\nprint(f"\\n平均成功率: {sum(results.values())/len(results):.0%}")</code></pre>'+
-    '<h4>结果解读</h4>'+
-    '<table><thead><tr><th>指标</th><th>Zero-shot (OpenVLA)</th><th>SmolVLA (训练后)</th><th>说明</th></tr></thead><tbody>'+
-    '<tr><td><strong>LIBERO-Spatial</strong></td><td>60-80%</td><td>55-75%</td><td>SmolVLA 略低，但差距在 10% 以内</td></tr>'+
-    '<tr><td><strong>LIBERO-Object</strong></td><td>40-60%</td><td>35-55%</td><td>物体识别是 SmolVLA 的弱项（视觉编码器小）</td></tr>'+
-    '<tr><td><strong>LIBERO-Goal</strong></td><td>30-50%</td><td>30-50%</td><td>指令跟随能力相当</td></tr>'+
-    '<tr><td><strong>平均</strong></td><td>~55%</td><td>~50%</td><td>15x 参数缩减，性能只掉 ~5%</td></tr>'+
+    '<section><h3>5.5 评估：用 LeRobot eval 在 LIBERO 上验证</h3>'+
+    '<p>训练完不能只看 loss。SmolVLA 官方提供了 <code>lerobot-eval</code> 工具，一行命令就能在 LIBERO 上跑完 10 个任务 × 5 episode 的完整评估，<strong>自动录制 MP4 视频</strong>。</p>'+
+    '<div class="callout tip"><div class="lb">💡 两种评估路径</div><ul style="margin:8px 0 0 1.2em;line-height:1.9"><li><strong>路径 A（快速体验）</strong>：直接下载 HuggingFace 官方微调好的 <code>lerobot/smolvla_libero</code> 权重进行评估——适合想先看效果再决定是否训练</li><li><strong>路径 B（自己训练）</strong>：用 §5.4 训出的 <code>best.pt</code>，通过 <code>lerobot-eval</code> 评估——训练闭环的最后一环</li></ul></div>'+
+    '<h4>前置准备：两个关键修复</h4>'+
+    '<p>SmolVLA 的 <code>lerobot-eval</code> 在 L40 容器环境下有两个坑需要提前处理：</p>'+
+    '<div class="callout"><div class="lb">⚠️ 修复 1：OSMesa 渲染</div><p style="margin:0">L40 容器不支持 EGL 渲染。SmolVLA 依赖的 <code>robosuite</code> 库会在导入时强制覆盖 <code>MUJOCO_GL=egl</code>。修复方法：编辑 <code>.venv/lib/python3.10/site-packages/robosuite/utils/binding_utils.py</code>，将第 41-43 行的 <code>os.environ["MUJOCO_GL"] = "egl"</code> 改为 <code>os.environ.setdefault("MUJOCO_GL", "egl")</code>。</p></div>'+
+    '<div class="callout"><div class="lb">⚠️ 修复 2：HuggingFace 镜像</div><p style="margin:0">L40 无法直连 huggingface.co。SmolVLM2 骨干模型需要提前下载到本地，并在 <code>config.json</code> 中将 <code>vlm_model_name</code> 指向本地路径 <code>/root/gpufree-data/models/SmolVLM2-500M-Instruct</code>。运行时设置 <code>export HF_ENDPOINT=https://hf-mirror.com</code>。</p></div>'+
+    '<h4>路径 A：用官方权重快速评估</h4>'+
+    '<pre><code># 1. 下载权重（2 分钟）\nhuggingface-cli download lerobot/smolvla_libero \\\n  --local-dir /root/gpufree-data/models/smolvla_libero \\\n  --endpoint https://hf-mirror.com\n\n# 2. 下载 VLM 骨干（1 分钟）\nhuggingface-cli download HuggingFaceTB/SmolVLM2-500M-Instruct \\\n  --local-dir /root/gpufree-data/models/SmolVLM2-500M-Instruct \\\n  --endpoint https://hf-mirror.com\n\n# 3. 修改 config.json 中的 vlm_model_name 为本地路径\n# 4. 一行命令评估（10 任务 × 5 episode，约 60 分钟）\nexport MUJOCO_GL=osmesa HF_ENDPOINT=https://hf-mirror.com\n.venv/bin/lerobot-eval \\\n  --policy.path=/root/gpufree-data/models/smolvla_libero \\\n  --env.type=libero \\\n  --env.task=libero_spatial \\\n  --eval.n_episodes=5 \\\n  --eval.batch_size=5</code></pre>'+
+    '<h4>路径 B：评估自己训练的模型</h4>'+
+    '<pre><code># 将训练产物转为 LeRobot 格式，然后同样用 lerobot-eval\nexport MUJOCO_GL=osmesa HF_ENDPOINT=https://hf-mirror.com\n.venv/bin/lerobot-eval \\\n  --policy.path=/root/gpufree-data/vla-course/outputs/smolvla \\\n  --env.type=libero \\\n  --env.task=libero_spatial \\\n  --eval.n_episodes=5 \\\n  --eval.batch_size=5</code></pre>'+
+    '</section>'+
+    '<section><h3>5.6 实测结果（L40 云端, 2026-06-30）</h3>'+
+    '<p>以下是用路径 A（官方 <code>smolvla_libero</code> 权重）在 L40 上跑出的完整评估结果：</p>'+
+    '<h4>总体指标</h4>'+
+    '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:16px 0"><div class="card" style="text-align:center"><div class="card-label">总成功率</div><div style="font-size:2.5em;font-weight:800;background:linear-gradient(135deg,#22d3ee,#3b82f6);-webkit-background-clip:text;-webkit-text-fill-color:transparent">70%</div><div style="color:#94a3b8;font-size:0.85em">35/50 episode</div></div><div class="card" style="text-align:center"><div class="card-label">平均 Reward</div><div style="font-size:2.5em;font-weight:800;color:#f59e0b">0.70</div><div style="color:#94a3b8;font-size:0.85em">avg_sum / avg_max</div></div><div class="card" style="text-align:center"><div class="card-label">评估耗时</div><div style="font-size:2.5em;font-weight:800;color:#10b981">66min</div><div style="color:#94a3b8;font-size:0.85em">3971s / 50 ep</div></div></div>'+
+    '<h4>逐任务明细（每任务 5 episode）</h4>'+
+    '<table><thead><tr><th>任务 ID</th><th>Episode 结果</th><th>成功率</th><th>评级</th></tr></thead><tbody>'+
+    '<tr><td><strong>Task 2</strong></td><td>[✅ ✅ ✅ ✅ ✅]</td><td>100%</td><td>🏆 完美</td></tr>'+
+    '<tr><td><strong>Task 3</strong></td><td>[✅ ✅ ✅ ✅ ✅]</td><td>100%</td><td>🏆 完美</td></tr>'+
+    '<tr><td><strong>Task 4</strong></td><td>[✅ ✅ ✅ ❌ ✅]</td><td>80%</td><td>⭐ 优秀</td></tr>'+
+    '<tr><td><strong>Task 6</strong></td><td>[✅ ❌ ✅ ✅ ✅]</td><td>80%</td><td>⭐ 优秀</td></tr>'+
+    '<tr><td><strong>Task 7</strong></td><td>[❌ ✅ ✅ ✅ ✅]</td><td>80%</td><td>⭐ 优秀</td></tr>'+
+    '<tr><td><strong>Task 9</strong></td><td>[✅ ❌ ✅ ✅ ✅]</td><td>80%</td><td>⭐ 优秀</td></tr>'+
+    '<tr><td><strong>Task 1</strong></td><td>[✅ ✅ ✅ ❌ ❌]</td><td>60%</td><td>⚠️ 中等</td></tr>'+
+    '<tr><td><strong>Task 0</strong></td><td>[✅ ❌ ❌ ✅ ❌]</td><td>40%</td><td>🔴 困难</td></tr>'+
+    '<tr><td><strong>Task 5</strong></td><td>[✅ ❌ ✅ ❌ ❌]</td><td>40%</td><td>🔴 困难</td></tr>'+
+    '<tr><td><strong>Task 8</strong></td><td>[✅ ❌ ❌ ✅ ❌]</td><td>40%</td><td>🔴 困难</td></tr>'+
     '</tbody></table>'+
-    '<div class="card"><div class="card-label">🔑 核心发现</div><p>SmolVLA 用 <strong>1/15 的参数</strong>、<strong>1/6 的训练成本</strong>、<strong>1/3 的推理显存</strong>，换来了 <strong>~5% 的性能下降</strong>。这个性价比在工程上极为诱人——如果你的任务难度在 LIBERO-Spatial 级别，SmolVLA 是压倒性的最优选择。</p></div>'+
+    '<h4>视频示例</h4>'+
+    '<p>以下是从 50 个评估视频中选出的 4 个代表：</p>'+
+    '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin:16px 0">'+
+    '<div class="card"><div class="card-label">🏆 Task 2 — 100% 成功</div><video controls muted loop playsinline style="width:100%;border-radius:8px"><source src="videos/smolvla/task2_perfect.mp4" type="video/mp4"></video><p style="font-size:0.85em;color:#94a3b8;margin:8px 0 0">5/5 episode 全部完成，机械臂动作流畅</p></div>'+
+    '<div class="card"><div class="card-label">🏆 Task 3 — 100% 成功</div><video controls muted loop playsinline style="width:100%;border-radius:8px"><source src="videos/smolvla/task3_perfect.mp4" type="video/mp4"></video><p style="font-size:0.85em;color:#94a3b8;margin:8px 0 0">5/5 episode 全部完成，抓取精准</p></div>'+
+    '<div class="card"><div class="card-label">⚠️ Task 5 — 偶发成功</div><video controls muted loop playsinline style="width:100%;border-radius:8px"><source src="videos/smolvla/task5_partial.mp4" type="video/mp4"></video><p style="font-size:0.85em;color:#94a3b8;margin:8px 0 0">2/5 成功。成功 episode 中机械臂找到了正确的抓取路径</p></div>'+
+    '<div class="card"><div class="card-label">🔴 Task 8 — 典型失败</div><video controls muted loop playsinline style="width:100%;border-radius:8px"><source src="videos/smolvla/task8_fail.mp4" type="video/mp4"></video><p style="font-size:0.85em;color:#94a3b8;margin:8px 0 0">2/5 成功。失败 episode 中机械臂在物体附近徘徊但无法完成抓取</p></div>'+
+    '</div>'+
+    '<h4>与 OpenVLA 对比</h4>'+
+    '<table><thead><tr><th>指标</th><th>OpenVLA (7B)</th><th>SmolVLA (450M)</th><th>差距</th></tr></thead><tbody>'+
+    '<tr><td><strong>LIBERO-Spatial 成功率</strong></td><td>80% (8/10 任务)</td><td>70% (35/50 episode)</td><td>-10%</td></tr>'+
+    '<tr><td><strong>推理速度</strong></td><td>~8s/episode</td><td>~79s/episode</td><td>10x 更慢</td></tr>'+
+    '<tr><td><strong>参数规模</strong></td><td>7B</td><td>450M</td><td>15x 更小</td></tr>'+
+    '<tr><td><strong>推理显存</strong></td><td>~14GB</td><td>~8GB</td><td>1.7x 更省</td></tr>'+
+    '<tr><td><strong>评估工具</strong></td><td>自定义 Python 脚本</td><td><code>lerobot-eval</code>（自动录视频）</td><td>工具更标准</td></tr>'+
+    '</tbody></table>'+
+    '<div class="card"><div class="card-label">🔑 核心发现</div><p>SmolVLA 用 <strong>1/15 的参数</strong>，在 LIBERO-Spatial 上达到 OpenVLA 的 <strong>87.5% 性能</strong>（70% vs 80%）。推理速度确实更慢（79s vs 8s），但 <strong>自动录制 MP4 视频</strong> 让评估结果可视化程度远超 OpenVLA 的静态截图。对于教学场景——需要快速迭代实验、直观理解模型行为——SmolVLA + lerobot-eval 的组合是更合适的选择。</p></div>'+
     '</section>'+
 
 
-    '<section><h3>5.6 调试与改进</h3>'+
+    '<section><h3>5.7 调试与改进</h3>'+
     '<p>训练不会一次成功。以下是常见问题和解决方案：</p>'+
     '<table><thead><tr><th>现象</th><th>可能原因</th><th>解决方案</th></tr></thead><tbody>'+
     '<tr><td>Loss 不下降</td><td>学习率太大/太小</td><td>尝试 lr=3e-5, 1e-4, 3e-4 三组对比</td></tr>'+
@@ -1094,9 +1128,9 @@ function r_ch5(area,ch){
     '</section>'+
 
 
-    '<section><h3>📝 本章小结</h3><div class="card"><div class="card-label">带走这几条</div><ol style="padding-left:1.5em;line-height:2.1"><li><strong>SmolVLA = EfficientViT (100M) + SmolLM (360M) + 7x256 动作头 (~2M)</strong></li><li><strong>450M 参数, L40 全量训练 6h, 成本 $5</strong>——是目前最可训的 VLA</li><li><strong>15x 参数缩减 → 仅 5% 性能下降</strong>，性价比极高</li><li><strong>训练 = 自回归语言建模</strong>：动作离散化为 256 桶，和预测下一个 token 一模一样</li><li><strong>评估 ≠ 看 loss</strong>：必须跑 LIBERO 仿真，loss 低不代表任务能完成</li><li><strong>静态帧过滤</strong>是数据预处理的关键——大部分机器人数据中机械臂在"等待"，这些帧会教会模型"不动"</li></ol></div>'+
+    '<section><h3>📝 本章小结</h3><div class="card"><div class="card-label">带走这几条</div><ol style="padding-left:1.5em;line-height:2.1"><li><strong>SmolVLA = EfficientViT (100M) + SmolLM (360M) + 7x256 动作头 (~2M)</strong></li><li><strong>450M 参数, L40 全量训练 6h, 成本 $5</strong>——是目前最可训的 VLA</li><li><strong>70% LIBERO-Spatial 成功率</strong>（官方权重），达到 OpenVLA 的 87.5%——15x 参数缩减，性能只掉 10%</li><li><strong>训练 = 自回归语言建模</strong>：动作离散化为 256 桶，和预测下一个 token 一模一样</li><li><strong>评估用 lerobot-eval</strong>：一行命令跑完 50 episode，自动录 MP4 视频——比自定义脚本更标准</li><li><strong>两个必做修复</strong>：robosuite OSMesa patch + SmolVLM2 骨干本地化，少一个都跑不通</li></ol></div>'
 
-    '<h4>🤔 思考题</h4><ol style="padding-left:1.5em;line-height:2.2"><li>SmolVLA 的视觉编码器从 SigLIP ViT-SO (384M) 换成了 EfficientViT (100M)——如果物体识别成功率因此下降 10%，你会怎么改进？换回大编码器还是从数据侧解决？</li><li>train.py 中用了 AMP 混合精度（autocast + GradScaler）。如果把 batch_size 从 64 翻倍到 128，显存够吗？不够的话梯度累积应该设多少？</li><li>你训出来的 SmolVLA 在 LIBERO-Spatial 上成功率 55%。OpenVLA zero-shot 是 70%。你会选择部署哪个？为什么？</li></ol>';
+    '<h4>🤔 思考题</h4><ol style="padding-left:1.5em;line-height:2.2"><li>SmolVLA 的视觉编码器从 SigLIP ViT-SO (384M) 换成了 EfficientViT (100M)——如果物体识别成功率因此下降 10%，你会怎么改进？换回大编码器还是从数据侧解决？</li><li>train.py 中用了 AMP 混合精度（autocast + GradScaler）。如果把 batch_size 从 64 翻倍到 128，显存够吗？不够的话梯度累积应该设多少？</li><li>我们实测 SmolVLA 官方权重在 LIBERO-Spatial 上成功率 70%，OpenVLA 是 80%。如果你自己训练，可能更低。你会选择部署哪个？为什么？</li></ol>';
 }
 
 function r_ch6(area,ch){
