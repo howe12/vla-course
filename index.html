@@ -474,7 +474,7 @@ function r_ch1(area,ch){
     '<div class="callout warn"><div class="lb">⚠️ 当前 VLA 还做不到的</div><ul style="margin:8px 0 0 1.2em;line-height:1.9"><li><strong>长时序规划</strong>：难以处理超过 20 步的复杂任务链</li><li><strong>精确力控</strong>：插拔 USB、拧螺丝等需要毫牛级力觉的任务</li><li><strong>新物体泛化</strong>：没见过形状的物体仍会失败，域外泛化是开放问题</li><li><strong>高速实时控制</strong>：7B+ 模型推理 >1 秒，不适合 50Hz+ 的控制回路</li><li><strong>安全性保证</strong>：模型可能输出危险的超界动作，需要工程防护</li></ul></div>'+
     '</section>'+
 
-    '<section><h3>1.12  动手实验 1：动作离散化</h3>'
+    '<section><h3>1.12  动手实验 1：动作离散化</h3>'+
     '<p>不加载任何模型，用 30 行 Python 亲手把连续动作映射到 256 个离散桶：</p>'+
     '<div class="practice-box"><div class="pb-title"> 实验 1.1：动作离散化（256 桶方案）</div><ol class="steps"><li><strong>运行</strong>：<code>cd /develop/vla-course/codes && source .venv/bin/activate && python step1_basics/action_discretize.py</code></li><li><strong>观察</strong>：7 维动作 256 桶索引 恢复值，误差 < 0.008</li><li><strong>修改</strong>：改 NUM_BINS=128 或 512，观察精度变化</li></ol></div>'+
     '<details><summary>展开核心输出</summary><div class="details-body"><pre><code>动作维度: 7  (x, y, z, roll, pitch, yaw, gripper)\n值域: [-1.0, 1.0]\n桶数: 256\n分辨率: 0.00784\n\n      维度       连续值     桶索引       恢复值          误差\n-------------------------------------------------------\n      x    0.3500     172    0.3490     0.00098\n      y   -0.1200     112   -0.1216     0.00157\n      z    0.0800     137    0.0745     0.00549\n   roll    0.0000     127   -0.0039     0.00392\n  pitch   -0.0500     121   -0.0510     0.00098\n    yaw    0.0200     130    0.0196     0.00039\n gripper    1.0000     255    1.0000     0.00000</code></pre></div></details>'+
