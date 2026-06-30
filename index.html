@@ -206,8 +206,8 @@ const CHAPTERS = [
   {id:'ch0',num:'0',title:'课程总览',desc:'VLA 是什么、为什么重要、这门课怎么学。'},
   {id:'ch1',num:'1',title:'VLA 基础与架构',desc:'视觉-语言-动作模型的核心概念、技术演进与系统架构。'},
   {id:'ch2',num:'2',title:'仿真环境搭建',desc:'MuJoCo + LIBERO 仿真平台，为 VLA 实验准备沙盒。'},
-  {id:'ch3',num:'3',title:'OpenVLA 实战',desc:'7B 开源 VLA 模型的推理、适配与理解。'},
-  {id:'ch4',num:'4',title:'L40 云端训练环境',desc:'SSH 连接、CUDA 配置、依赖管理——为后续训练备好算力。'},
+  {id:'ch3',num:'3',title:'L40 云端训练环境',desc:'SSH 连接、CUDA 配置、依赖管理——为后续训练备好算力。'},
+  {id:'ch4',num:'4',title:'OpenVLA 实战',desc:'7B 开源 VLA 模型的推理、适配与理解。'},
   {id:'ch5',num:'5',title:'SmolVLA 轻量 VLA',desc:'4.5 亿参数，单卡训练，CPU 推理——最亲民的 VLA。'},
   {id:'ch6',num:'6',title:'Pi0 扩散 VLA',desc:'基于扩散模型的 SOTA VLA，理解动作生成的另一种范式。'},
   {id:'ch7',num:'7',title:'Gemini 真机部署',desc:'将云端训练的 VLA 模型部署到双子座机器人上验证。'},
@@ -261,7 +261,7 @@ function renderHome(){
   area.innerHTML =
     '<div class="ch-header"><div class="ch-num">具身智能 · VLA 专题</div><h2>VLA 从零到部署</h2><p class="ch-desc">Vision-Language-Action · MuJoCo + LeRobot + L40 + Gemini</p></div>'+
     '<div class="callout"><div class="lb">📖 关于本教程</div><p>本教程带你从零开始掌握 <strong>VLA（Vision-Language-Action）</strong>模型——从理论基础、仿真实验、云端训练，到在<strong>双子座 Gemini 机器人</strong>上的真机部署。前置课程：<strong>VLN 视觉语言导航</strong> + <strong>模仿学习（ACT/LeRobot）</strong>。</p><p style="margin-top:8px"><strong>硬件要求</strong>：L40 云端 GPU（训练）+ Gemini 双臂机器人（真机验证）+ 普通电脑（仿真）</p></div>'+
-    '<section><h3>🗺️ 学习路线图</h3><p>从 VLA 是什么出发 → 仿真里跑通 OpenVLA → SmolVLA 轻量训练 → Pi0 扩散模型 → 云端分布式训练 → 真机部署验证 → 竞赛实战。一条<strong>从理论到真机</strong>的完整链路。</p>'+
+    '<section><h3>🗺️ 学习路线图</h3><p>从 VLA 是什么出发 → 搭好 L40 云端算力 → 仿真里跑通 OpenVLA → SmolVLA 轻量训练 → Pi0 扩散模型 → 真机部署验证 → 竞赛实战。一条<strong>从理论到真机</strong>的完整链路。</p>'+
     '<div class="toc-grid">'+cards+'</div></section>'+
     '<section><h3>🛠️ 环境要求</h3><table><thead><tr><th>组件</th><th>要求</th></tr></thead><tbody>'+
     '<tr><td>操作系统</td><td>Ubuntu 20.04/22.04</td></tr>'+
@@ -273,9 +273,9 @@ function renderHome(){
     '</tbody></table></section>'+
     '<section><h3>📋 学习节奏</h3><table><thead><tr><th>阶段</th><th>章节</th><th>主要产出</th></tr></thead><tbody>'+
     '<tr><td>第 1 周</td><td>1 + 2</td><td>理解 VLA 架构，跑通 MuJoCo/LIBERO 仿真</td></tr>'+
-    '<tr><td>第 2 周</td><td>3</td><td>OpenVLA 推理实战，理解 7B VLA 模型</td></tr>'+
-    '<tr><td>第 3 周</td><td>4</td><td>SmolVLA 训练，单卡完成轻量 VLA 微调</td></tr>'+
-    '<tr><td>第 4 周</td><td>5 + 6</td><td>Pi0 扩散 VLA + L40 云端分布式训练</td></tr>'+
+    '<tr><td>第 2 周</td><td>3</td><td>L40 云端环境搭建，SSH + CUDA + tmux 全配置</td></tr>'+
+    '<tr><td>第 3 周</td><td>4</td><td>OpenVLA 推理实战，7B VLA 模型零样本控制</td></tr>'+
+    '<tr><td>第 4 周</td><td>5 + 6</td><td>SmolVLA 训练 + Pi0 扩散 VLA 训练</td></tr>'+
     '<tr><td>第 5 周</td><td>7 + 8</td><td>Gemini 真机部署 + 竞赛实战</td></tr>'+
     '</tbody></table></section>'+
     '<section style="text-align:center;color:var(--muted);font-size:.85rem;padding:20px 0"><p>🏗️ NXROBO 具身智能课程系列</p><p>📝 License: <a href="http://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a></p></section>';
@@ -371,8 +371,8 @@ function r_ch2(area,ch){
   area.innerHTML=
     '<div class="transition-note"><strong>🔄 从 §1 的 VLA 理论出发</strong> 你已经理解了 VLA 的三模态架构和动作离散化原理。现在在把这些概念落地的第一步——搭建仿真沙盒。MuJoCo 提供物理引擎，LIBERO 提供标准 VLA 评测任务，两者结合就是你的 VLA 实验室。</div>'+
     '<div class="ch-header"><div class="ch-num">第 '+ch.num+' 章</div><h2>'+ch.title+'</h2><p class="ch-desc">'+ch.desc+'</p></div>'+
-    '<div class="callout tip"><div class="lb">🎯 学习目标</div><ul style="margin:8px 0 0 1.2em;line-height:1.9"><li>理解 MuJoCo 物理引擎的核心概念：mjModel / mjData / mj_step</li><li>掌握 LIBERO 基准测试：130 个标准化 VLA 任务的使用方法</li><li>在本机搭建 MuJoCo + LIBERO 仿真环境（uv 管理依赖）</li><li>跑通 LIBERO 随机动作 Demo，理解观测空间与动作空间</li><li>为第 3 章 OpenVLA 推理准备好仿真沙盒</li></ul></div>'+
-    '<div class="callout"><div class="lb">📍 本章定位</div><p style="margin:0">本章是<strong>VLA 实验的沙盒层</strong>。所有后续章节的模型推理（§3 OpenVLA）、训练评估（§5 SmolVLA、§6 Pi0）都在 LIBERO 仿真中完成。装好这一章的环境，后面所有实验都能直接跑。</p></div>'+
+    '<div class="callout tip"><div class="lb">🎯 学习目标</div><ul style="margin:8px 0 0 1.2em;line-height:1.9"><li>理解 MuJoCo 物理引擎的核心概念：mjModel / mjData / mj_step</li><li>掌握 LIBERO 基准测试：130 个标准化 VLA 任务的使用方法</li><li>在本机搭建 MuJoCo + LIBERO 仿真环境（uv 管理依赖）</li><li>跑通 LIBERO 随机动作 Demo，理解观测空间与动作空间</li><li>为第 4 章 OpenVLA 推理准备好仿真沙盒</li></ul></div>'+
+    '<div class="callout"><div class="lb">📍 本章定位</div><p style="margin:0">本章是<strong>VLA 实验的沙盒层</strong>。所有后续章节的模型推理（§4 OpenVLA）、训练评估（§5 SmolVLA、§6 Pi0）都在 LIBERO 仿真中完成。装好这一章的环境，后面所有实验都能直接跑。</p></div>'+
 
     '<section><h3>2.1 MuJoCo 物理引擎简介</h3>'+
     '<p><strong>MuJoCo</strong>（Multi-Joint dynamics with Contact）是 DeepMind 开发的高性能物理仿真引擎，专为机器人控制和强化学习设计。它是 LIBERO 的底层物理引擎——机械臂的关节运动、物体碰撞、摩擦力都由 MuJoCo 计算。</p>'+
@@ -446,7 +446,7 @@ function r_ch2(area,ch){
     '<div class="practice-box"><div class="pb-title">🧪 第一个仿真实验：看机械臂动起来</div><ol class="steps"><li><strong>确认 MuJoCo</strong>：<code>python3 -c "import mujoco; print(mujoco.__version__)"</code></li><li><strong>启动图形仿真</strong>：<code>cd /develop/vla-course/codes && uv run python step2_sim/sim_vla_arm.py</code></li><li><strong>无头模式</strong>（SSH/服务器）：<code>uv run python step2_sim/sim_vla_arm.py --headless</code></li><li><strong>观察</strong>：图形模式下，MuJoCo Viewer 弹出，机械臂按正弦轨迹摆动，末端逐渐靠近红色目标方块</li></ol></div>'+
     '<p>这个脚本模拟了 VLA 的完整控制循环：</p>'+
     '<pre><code>相机图像 ──→ [VLA 模型] ──→ 目标关节角\n    ↑                            ↓\n    └──── 末端位置 ←── [MuJoCo PD 控制]</code></pre>'+
-    '<p>目前 VLA 输出用正弦轨迹 mock。第 3 章会把 mock 替换为 OpenVLA 7B 的真实推理——到那时，你看到的机械臂运动就是大模型"看懂场景后做出的决策"。</p>'+
+    '<p>目前 VLA 输出用正弦轨迹 mock。第 4 章会把 mock 替换为 OpenVLA 7B 的真实推理——到那时，你看到的机械臂运动就是大模型"看懂场景后做出的决策"。</p>'+
     '<div style="display:flex;flex-wrap:wrap;gap:8px;margin:16px 0">'+
       '<div style="flex:1;min-width:140px;text-align:center">'+
         '<img src="figs/sim_pose0_start.png" alt="初始姿态" style="width:100%;border-radius:6px;box-shadow:var(--shadow-sm)">'+
@@ -465,7 +465,7 @@ function r_ch2(area,ch){
         '<span style="font-size:.7rem;color:var(--muted)">④ 末端接近目标方块</span>'+
       '</div>'+
     '</div>'+
-    '<div class="card"><div class="card-label">📸 姿态说明</div><p>以上 4 帧来自 <code>sim_vla_arm.py</code> 的实际运行截图。机械臂从初始竖直姿态（①）→ 基座旋转加肩部下压（②）→ 肘部弯折前伸（③）→ 末端到达目标方块附近（④），垂直位移约 70 cm。当前用正弦轨迹驱动——第 3 章替换为 OpenVLA 推理后，同样的机械臂将根据语言指令做出有目的性的动作。</p></div>'+
+    '<div class="card"><div class="card-label">📸 姿态说明</div><p>以上 4 帧来自 <code>sim_vla_arm.py</code> 的实际运行截图。机械臂从初始竖直姿态（①）→ 基座旋转加肩部下压（②）→ 肘部弯折前伸（③）→ 末端到达目标方块附近（④），垂直位移约 70 cm。当前用正弦轨迹驱动——第 4 章替换为 OpenVLA 推理后，同样的机械臂将根据语言指令做出有目的性的动作。</p></div>'+
     '</section>'+
 
 
@@ -507,7 +507,7 @@ function r_ch2(area,ch){
         '<span style="font-size:.7rem;color:var(--muted)">gripper=-1.0 夹爪关闭（手指并拢）</span>'+
       '</div>'+
     '</div>'+
-    '<div class="card"><div class="card-label"> 夹爪对比</div><p>夹爪开 vs 关是最容易看出的区别——观察机械臂末端的两根灰色手指：<strong>打开时手指分开</strong>（左图），<strong>关闭时手指并拢</strong>（右图）。第 3 章 OpenVLA 推理时，gripper 值会在接近物体时自动从 +1 变为 -1，实现"看到碗 → 伸手 → 抓住"的完整动作序列。</p></div>'+
+    '<div class="card"><div class="card-label"> 夹爪对比</div><p>夹爪开 vs 关是最容易看出的区别——观察机械臂末端的两根灰色手指：<strong>打开时手指分开</strong>（左图），<strong>关闭时手指并拢</strong>（右图）。第 4 章 OpenVLA 推理时，gripper 值会在接近物体时自动从 +1 变为 -1，实现"看到碗 → 伸手 → 抓住"的完整动作序列。</p></div>'+
 
     '<div class="callout"><div class="lb"> 实操路线图</div><p style="margin:0">MuJoCo 底层（实验 1-2）  LIBERO 标准评测（实验 3-4）  课程机械臂实战（下方 2.2.5）  LIBERO Demo（2.4.5）。四层递进：<strong>原理  探索  定制  标准化</strong>。</p></div>'+
 
@@ -553,13 +553,13 @@ function r_ch2(area,ch){
         '<span style="font-size:.7rem;color:var(--muted)">⑤ 上提取物（模拟举起）</span>'+
       '</div>'+
     '</div>'+
-    '<div class="card"><div class="card-label">📸 观测帧说明</div><p>以上 5 帧来自 <strong>pick up the black bowl between the plate and the ramekin and place it on the plate</strong> 任务。脚本用<strong>大幅定向动作</strong>（而非随机抖动）驱动 Panda 机械臂完成一个模拟抓取序列：① 初始悬停 → ② 右移下降靠近桌面 → ③ 大幅左移横跨桌面 → ④ 前伸 + 夹爪闭合（模拟抓取）→ ⑤ 上提取物（模拟举起）。</p><p style="margin-top:8px"><strong>💡 顶视角局限</strong>：LIBERO 默认只有顶部固定相机（agentview），机械臂在画面中只占 ~12% 像素，因此缩略图看起来差异不大。<strong>请点击大图仔细观察机械臂的 XY 位置和夹爪开合状态。</strong>第 3 章用 OpenVLA 替换定向动作后，机械臂将根据语言指令自主完成真实抓取。</p></div>'+
+    '<div class="card"><div class="card-label">📸 观测帧说明</div><p>以上 5 帧来自 <strong>pick up the black bowl between the plate and the ramekin and place it on the plate</strong> 任务。脚本用<strong>大幅定向动作</strong>（而非随机抖动）驱动 Panda 机械臂完成一个模拟抓取序列：① 初始悬停 → ② 右移下降靠近桌面 → ③ 大幅左移横跨桌面 → ④ 前伸 + 夹爪闭合（模拟抓取）→ ⑤ 上提取物（模拟举起）。</p><p style="margin-top:8px"><strong>💡 顶视角局限</strong>：LIBERO 默认只有顶部固定相机（agentview），机械臂在画面中只占 ~12% 像素，因此缩略图看起来差异不大。<strong>请点击大图仔细观察机械臂的 XY 位置和夹爪开合状态。</strong>第 4 章用 OpenVLA 替换定向动作后，机械臂将根据语言指令自主完成真实抓取。</p></div>'+
     '</section>'+
 
     '<section><h3>2.5 第一个 VLA 推理 Demo</h3>'+
     '<p>安装完环境后，跑通一个最小化的 VLA 推理流程——用 OpenVLA 在 LIBERO-Spatial 上做一个零样本推理：</p>'+
     '<div class="practice-box"><div class="pb-title">🧪 跑通第一个 VLA 仿真实验</div><ol class="steps"><li><strong>确认环境</strong>：<code>cd /develop/vla-course/codes && uv run python -c "import mujoco, libero; print(\'OK\')"</code></li><li><strong>创建脚本</strong>：在 <code>codes/step2_sim/</code> 下新建 <code>run_openvla.py</code>（见下方折叠面板）</li><li><strong>运行</strong>：<code>uv run python codes/step2_sim/run_openvla.py</code></li><li><strong>观察</strong>：终端打印每个 step 的预测动作和 gripper 状态</li></ol></div>'+
-    '<details><summary>展开查看 run_openvla.py 完整代码</summary><div class="details-body"><pre><code>#!/usr/bin/env python3\n""""最小化 VLA 推理：OpenVLA + LIBERO-Spatial""""\nimport numpy as np\nfrom libero.libero import benchmark\n\n# 1. 加载 LIBERO 任务\nprint("加载 LIBERO-Spatial...")\nbenchmark_dict = benchmark.get_benchmark_dict()\ntask_suite = benchmark_dict["libero_spatial"]()\ntask = task_suite.get_task(0)\n\nprint(f"任务: {task.name}")\nprint(f"指令: {task.language_instruction}")\n\n# 2. 创建环境\nenv_args = {\n    "task": task,\n    "bddl_file": task.bddl_file,\n    "camera_heights": 224,\n    "camera_widths": 224,\n}\nenv = task_suite.get_env(task_id=0, env_args=env_args)\n\n# 3. 重置 → 推理循环\nobs = env.reset()\nprint(f"观测 shape: {obs.shape}  (应为 224,224,3)")\nprint(f"动作维度: {env.action_space.shape[0]}  (应为 7)")\n\n# 模拟 VLA 推理（实际模型加载见第 3 章）\nfor step in range(20):\n    # ── VLA 推理位置（第 3 章替换为真实模型）──\n    action = np.random.uniform(-0.1, 0.1, 7)\n    action[6] = 1.0  # gripper 保持张开\n\n    obs, reward, done, info = env.step(action)\n\n    if step % 5 == 0:\n        print(f"Step {step:3d} | 动作 Δxyz=({action[0]:+.3f},{action[1]:+.3f},{action[2]:+.3f}) | 夹爪={action[6]:.1f} | done={done}")\n\n    if done:\n        print(f"✅ 任务完成于 step {step}")\n        break\n\nprint("仿真结束。下一步：第 3 章加载真实 OpenVLA 模型替换随机动作。")</code></pre></div></details>'+
+    '<details><summary>展开查看 run_openvla.py 完整代码</summary><div class="details-body"><pre><code>#!/usr/bin/env python3\n""""最小化 VLA 推理：OpenVLA + LIBERO-Spatial""""\nimport numpy as np\nfrom libero.libero import benchmark\n\n# 1. 加载 LIBERO 任务\nprint("加载 LIBERO-Spatial...")\nbenchmark_dict = benchmark.get_benchmark_dict()\ntask_suite = benchmark_dict["libero_spatial"]()\ntask = task_suite.get_task(0)\n\nprint(f"任务: {task.name}")\nprint(f"指令: {task.language_instruction}")\n\n# 2. 创建环境\nenv_args = {\n    "task": task,\n    "bddl_file": task.bddl_file,\n    "camera_heights": 224,\n    "camera_widths": 224,\n}\nenv = task_suite.get_env(task_id=0, env_args=env_args)\n\n# 3. 重置 → 推理循环\nobs = env.reset()\nprint(f"观测 shape: {obs.shape}  (应为 224,224,3)")\nprint(f"动作维度: {env.action_space.shape[0]}  (应为 7)")\n\n# 模拟 VLA 推理（实际模型加载见第 4 章）\nfor step in range(20):\n    # ── VLA 推理位置（第 4 章替换为真实模型）──\n    action = np.random.uniform(-0.1, 0.1, 7)\n    action[6] = 1.0  # gripper 保持张开\n\n    obs, reward, done, info = env.step(action)\n\n    if step % 5 == 0:\n        print(f"Step {step:3d} | 动作 Δxyz=({action[0]:+.3f},{action[1]:+.3f},{action[2]:+.3f}) | 夹爪={action[6]:.1f} | done={done}")\n\n    if done:\n        print(f"✅ 任务完成于 step {step}")\n        break\n\nprint("仿真结束。下一步：第 4 章加载真实 OpenVLA 模型替换随机动作。")</code></pre></div></details>'+
     '<p>这个脚本目前用随机动作占位。第 3 章会加载真实的 OpenVLA 7B 模型，把 <code>np.random.uniform</code> 替换为模型推理输出。</p>'+
     '</section>'+
 
@@ -578,10 +578,10 @@ function placeholder(area,ch,detail){
 
 function r_ch3(area,ch){
   area.innerHTML=
-    '<div class="transition-note"><strong>🔄 从 §2 的仿真环境出发</strong> MuJoCo + LIBERO 已经就绪，随机动作的 Demo 也跑通了。现在把随机数替换为<strong>真正的 VLA 模型</strong>——加载 OpenVLA 7B，让大模型看懂场景、理解指令、输出可以完成任务的机械臂动作。</div>'+
+    '<div class="transition-note"><strong>🔄 从 §3 的 L40 云端环境出发</strong> GPU 已就绪、tmux 已学会。现在进入 VLA 推理实战——加载 OpenVLA 7B，让大模型看懂场景、理解指令、输出可以完成任务的机械臂动作。这也是你第一次看到 VLA 模型真正控制机器人。</div>'+
     '<div class="ch-header"><div class="ch-num">第 '+ch.num+' 章</div><h2>'+ch.title+'</h2><p class="ch-desc">'+ch.desc+'</p></div>'+
     '<div class="callout tip"><div class="lb">🎯 学习目标</div><ul style="margin:8px 0 0 1.2em;line-height:1.9"><li>理解 OpenVLA 的架构：SigLIP ViT + LLaMA 7B + Action Head 的分工</li><li>从 HuggingFace 下载并加载 OpenVLA 7B 模型（FP16 / INT4）</li><li>掌握推理管线：图像预处理 → 多模态前向 → 离散 Token → 连续动作</li><li>掌握推理管线：图像预处理 模型前向 动作解码 环境闭环</li><li>在 LIBERO-Spatial 上运行完整的 VLA 微调模型推理闭环</li></ul></div>'+
-    '<div class="callout"><div class="lb">📍 本章定位</div><p style="margin:0">本章是<strong>VLA 推理的起点</strong>。你先学会"用"模型——加载现成的 OpenVLA 权重，理解它如何从像素走到关节角。第 4 章（SmolVLA）和第 5 章（Pi0）会教你"训"模型。第 6 章（L40）则是"规模化训练"。</p></div>'+
+    '<div class="callout"><div class="lb">📍 本章定位</div><p style="margin:0">本章是<strong>VLA 推理的核心章</strong>。你先学会"用"模型——加载现成的 OpenVLA 权重，理解它如何从像素走到关节角。第 5 章（SmolVLA）和第 6 章（Pi0）会教你"训"模型。第 6 章（L40）则是"规模化训练"。</p></div>'+
 
     '<section><h3>3.1 OpenVLA 是什么？</h3>'+
     '<p><strong>OpenVLA</strong>（2024.3）是 Stanford HAI 和 UIUC 联合发布的<strong>首个开源 7B VLA 模型</strong>。它的发布标志着 VLA 从"闭源封闭"走向"开源开放"——权重、代码、推理框架全部公开，Apache 2.0 协议可商用。</p>'+
@@ -730,7 +730,7 @@ function r_ch3(area,ch){
 };
 function r_ch4(area,ch){
   area.innerHTML=
-    '<div class="transition-note"><strong>🔄 从 §3 的 OpenVLA 推理出发</strong> 你已经用 OpenVLA 在本地跑通了 VLA 推理。但 OpenVLA 是拿别人训好的权重——接下来三章要<strong>自己训练 VLA 模型</strong>。训练需要 GPU，而且最好是 40GB+ 显存的大卡。本章把 L40 云端 GPU 环境搭好，让后续的 SmolVLA（§5）和 Pi0（§6）训练"开箱即用"。</div>'+
+    '<div class="transition-note"><strong>🔄 从 §2 的仿真环境出发</strong> MuJoCo + LIBERO 已就绪。现在把<strong>云端算力</strong>搭好——L40 GPU 是后续所有训练的硬件基础。本章配置 SSH、CUDA、tmux，让 SmolVLA（§5）和 Pi0（§6）的训练"开箱即用"。</div>'+
     '<div class="ch-header"><div class="ch-num">第 '+ch.num+' 章</div><h2>'+ch.title+'</h2><p class="ch-desc">'+ch.desc+'</p></div>'+
     '<div class="callout tip"><div class="lb">🎯 学习目标</div><ul style="margin:8px 0 0 1.2em;line-height:1.9"><li>SSH 免密登录 L40 云端 GPU 服务器</li><li>理解 L40 的硬件配置和适用场景（44GB 显存 / 海外机房）</li><li>安装 CUDA Toolkit + PyTorch + 核心依赖</li><li>掌握 scp/rsync 文件传输和 tmux 持久会话</li><li>跑通 GPU 验证脚本，确认环境可用于后续训练</li></ul></div>'+
     '<div class="callout"><div class="lb">📍 本章定位</div><p style="margin:0">本章是<strong>算力基础设施</strong>。§5 的 SmolVLA 训练（450M, ~6h）和 §6 的 Pi0 训练（3B, ~20h）都需要 GPU。L40 的 44GB 显存可以同时覆盖这两个模型——装好一次环境，后面两章都不用再碰配置。</p></div>'+
@@ -815,13 +815,13 @@ function r_ch4(area,ch){
 
 function r_ch5(area,ch){
   area.innerHTML=
-    '<div class="transition-note"><strong>🔄 从 §4 的 L40 云端环境出发</strong> GPU 已就绪、tmux 已学会、rsync 能同步代码。现在进入正题——在 L40 上从头训练一个 VLA 模型。<strong>不拿别人训好的权重，从数据到模型到评估，完整走一遍。</strong></div>'+
+    '<div class="transition-note"><strong>🔄 从 §3 的 L40 云端环境出发</strong> GPU 已就绪、tmux 已学会、rsync 能同步代码。现在进入正题——在 L40 上从头训练一个 VLA 模型。<strong>不拿别人训好的权重，从数据到模型到评估，完整走一遍。</strong></div>'+
     '<div class="ch-header"><div class="ch-num">第 '+ch.num+' 章</div><h2>'+ch.title+'</h2><p class="ch-desc">'+ch.desc+'</p></div>'+
     '<div class="callout tip"><div class="lb">🎯 学习目标</div><ul style="margin:8px 0 0 1.2em;line-height:1.9"><li>理解 SmolVLA 的轻量化设计：EfficientViT (100M) + SmolLM (360M) + Action Head</li><li>掌握 VLA 训练数据格式：从 BridgeData V2 到 LeRobot Dataset</li><li>在 L40 上完整训练 SmolVLA（100K steps, ~6h）</li><li>学会解读训练曲线：loss 下降、val accuracy、过拟合信号</li><li>在 LIBERO-Spatial 上评估训练产物，对比 zero-shot vs fine-tuned</li></ul></div>'+
-    '<div class="callout"><div class="lb">📍 本章定位</div><p style="margin:0">本章是<strong>VLA 训练的核心章</strong>。§3 教你"用"模型，本章教你"训"模型。学完本章，你应该能：拿到一个新的机器人操作任务 → 准备数据 → 训练 SmolVLA → 评估 → 改进。这个闭环能力是 VLA 工程师的基本功。</p></div>'+
+    '<div class="callout"><div class="lb">📍 本章定位</div><p style="margin:0">本章是<strong>VLA 训练的核心章</strong>。§4 教你"用"模型，本章教你"训"模型。学完本章，你应该能：拿到一个新的机器人操作任务 → 准备数据 → 训练 SmolVLA → 评估 → 改进。这个闭环能力是 VLA 工程师的基本功。</p></div>'+
 
     '<section><h3>5.1 为什么是 SmolVLA？</h3>'+
-    '<p>§3 的 OpenVLA 是 7B 参数——推理可以（INT4 ~5GB），但训练需要 30-40GB 显存，消费级 GPU 根本训不动。SmolVLA 是 450M 参数，<strong>专为"可训练"设计</strong>：</p>'+
+    '<p>§4 的 OpenVLA 是 7B 参数——推理可以（INT4 ~5GB），但训练需要 30-40GB 显存，消费级 GPU 根本训不动。SmolVLA 是 450M 参数，<strong>专为"可训练"设计</strong>：</p>'+
     '<table><thead><tr><th>模型</th><th>参数</th><th>训练显存</th><th>训练时间(L40)</th><th>训练成本</th><th>可训性</th></tr></thead><tbody>'+
     '<tr><td><strong>OpenVLA</strong></td><td>7B</td><td>30-40 GB</td><td>~40h (LoRA)</td><td>~$32</td><td>仅 LoRA</td></tr>'+
     '<tr><td><strong>SmolVLA</strong></td><td>450M</td><td>16-24 GB</td><td>~6h (全量)</td><td>~$5</td><td>全量微调</td></tr>'+
@@ -831,7 +831,7 @@ function r_ch5(area,ch){
     '</section>'+
 
     '<section><h3>5.2 SmolVLA 架构</h3>'+
-    '<p>SmolVLA 的架构和 OpenVLA（§3.2）遵循相同的三阶段范式，但每个组件都做了轻量化：</p>'+
+    '<p>SmolVLA 的架构和 OpenVLA（§4.2）遵循相同的三阶段范式，但每个组件都做了轻量化：</p>'+
     '<pre><code>┌──────────────────────────────────────────┐\n│  📷 RGB (224x224x3)                      │\n│        ↓                                  │\n│  EfficientViT-B1 (100M)                  │\n│  · 移动端优化的 ViT，比 ViT-L 快 3x       │\n│  · 输出: 196 个 512-dim 视觉 token        │\n│        ↓                                  │\n│  ┌────────────────────────────────┐       │\n│  │  Projector: 512 → 1024         │       │\n│  └────────────────────────────────┘       │\n│        ↓                                  │\n│  ┌────────────────────────────────┐       │\n│  │  SmolLM 360M (24 层, 1024 dim) │       │\n│  │  · 基于 SmolLM-1.7B 蒸馏       │       │\n│  │  · 自回归生成 7 个动作 token   │       │\n│  └────────────────────────────────┘       │\n│        ↓                                  │\n│  ┌────────────────────────────────┐       │\n│  │  Action Head: 7 x Linear(1024,256)│    │\n│  │  7 dims x 256 bins              │       │\n│  └────────────────────────────────┘       │\n│        ↓                                  │\n│  🦾 (Δx, Δy, Δz, Δroll, Δpitch, Δyaw, g)│\n└──────────────────────────────────────────┘</code></pre>'+
     '<h4>三组件对比：OpenVLA vs SmolVLA</h4>'+
     '<table><thead><tr><th>组件</th><th>OpenVLA (7B)</th><th>SmolVLA (450M)</th><th>缩减倍数</th></tr></thead><tbody>'+
@@ -884,6 +884,16 @@ function r_ch5(area,ch){
     '<tr><td><strong>平均</strong></td><td>~55%</td><td>~50%</td><td>15x 参数缩减，性能只掉 ~5%</td></tr>'+
     '</tbody></table>'+
     '<div class="card"><div class="card-label">🔑 核心发现</div><p>SmolVLA 用 <strong>1/15 的参数</strong>、<strong>1/6 的训练成本</strong>、<strong>1/3 的推理显存</strong>，换来了 <strong>~5% 的性能下降</strong>。这个性价比在工程上极为诱人——如果你的任务难度在 LIBERO-Spatial 级别，SmolVLA 是压倒性的最优选择。</p></div>'+
+
+    '<h4>🎬 实测评估录像（LIBERO-Spatial）</h4>'+
+    '<p>以下是在 L40 上完成的 SmolVLA 评估录像（10 任务 × 5 次，总体 70% 成功率）：</p>'+
+    '<div style="display:flex;flex-wrap:wrap;gap:12px;margin:16px 0">'+
+    '<figure style="flex:1;min-width:200px;margin:0"><video src="videos/smolvla/task2_perfect.mp4" controls preload="metadata" style="width:100%;border-radius:8px;background:#000"></video><figcaption style="font-size:.75rem;color:var(--muted);text-align:center;margin-top:4px">✅ Task 2: 完美抓取 (100%)</figcaption></figure>'+
+    '<figure style="flex:1;min-width:200px;margin:0"><video src="videos/smolvla/task3_perfect.mp4" controls preload="metadata" style="width:100%;border-radius:8px;background:#000"></video><figcaption style="font-size:.75rem;color:var(--muted);text-align:center;margin-top:4px">✅ Task 3: 精准放置 (100%)</figcaption></figure>'+
+    '<figure style="flex:1;min-width:200px;margin:0"><video src="videos/smolvla/task5_partial.mp4" controls preload="metadata" style="width:100%;border-radius:8px;background:#000"></video><figcaption style="font-size:.75rem;color:var(--muted);text-align:center;margin-top:4px">⚠️ Task 5: 部分成功 (60%)</figcaption></figure>'+
+    '<figure style="flex:1;min-width:200px;margin:0"><video src="videos/smolvla/task8_fail.mp4" controls preload="metadata" style="width:100%;border-radius:8px;background:#000"></video><figcaption style="font-size:.75rem;color:var(--muted);text-align:center;margin-top:4px">❌ Task 8: 失败案例 (0%)</figcaption></figure>'+
+    '</div>'+
+    '<p style="font-size:.8rem;color:var(--muted)">💡 点击视频播放。完整 50 个评估视频见 <a href="https://github.com/howe12/vla-course/tree/main/codes/outputs/eval/2026-06-30/12-23-49_libero_smolvla/videos">GitHub 仓库</a>。</p>'+
     '</section>'+
 
     '<section><h3>5.6 调试与改进</h3>'+
@@ -909,7 +919,7 @@ function r_ch6(area,ch){
     '<div class="transition-note"><strong>🔄 从 §5 的 SmolVLA 训练出发</strong> SmolVLA 用自回归方式逐 token 生成动作——和 GPT 写文章一模一样。但现在 VLA 的前沿已经转向<strong>扩散模型</strong>：不是"从左到右写 token"，而是"从噪声里逐渐浮现出一个完整的抓取动作"。本章理解这个新范式，并在 L40 上跑通 Pi0。</div>'+
     '<div class="ch-header"><div class="ch-num">第 '+ch.num+' 章</div><h2>'+ch.title+'</h2><p class="ch-desc">'+ch.desc+'</p></div>'+
     '<div class="callout tip"><div class="lb">🎯 学习目标</div><ul style="margin:8px 0 0 1.2em;line-height:1.9"><li>理解自回归 VLA 的核心局限：误差累积、单峰假设、离散化精度损失</li><li>掌握扩散模型直觉：前向加噪 → 反向去噪，从 DDPM 到 Flow Matching</li><li>理解 Pi0 的双系统架构：高频 π0-Base + 低频 π0-High</li><li>在 L40 上训练 Pi0 并在 LIBERO 上评估</li><li>用 Pi0 驱动课程 MuJoCo 机械臂，对比自回归 vs 扩散的轨迹差异</li></ul></div>'+
-    '<div class="callout"><div class="lb">📍 本章定位</div><p style="margin:0">本章是<strong>VLA 范式的分水岭</strong>。§3（OpenVLA）和 §5（SmolVLA）是自回归路线——动作离散化、逐 token 生成。本章的 Pi0 是扩散路线——连续空间、并行生成、多峰建模。两条路线代表了 VLA 领域的两个技术流派，理解它们的差异是成为 VLA 工程师的关键。</p></div>'+
+    '<div class="callout"><div class="lb">📍 本章定位</div><p style="margin:0">本章是<strong>VLA 范式的分水岭</strong>。§4（OpenVLA）和 §5（SmolVLA）是自回归路线——动作离散化、逐 token 生成。本章的 Pi0 是扩散路线——连续空间、并行生成、多峰建模。两条路线代表了 VLA 领域的两个技术流派，理解它们的差异是成为 VLA 工程师的关键。</p></div>'+
 
     '<section><h3>6.1 自回归 VLA 有什么问题？</h3>'+
     '<p>你已经学了两章自回归 VLA（OpenVLA、SmolVLA）。在进入扩散 VLA 之前，先停下来想：<strong>自回归方式生成动作，到底有什么问题？</strong></p>'+
@@ -1022,6 +1032,15 @@ function r_ch6(area,ch){
     '<li>⚠️ 任务 8：<strong>60%</strong>（3/5）—— 唯一偏低的任务</li>'+
     '<li>🏆 总体成功率：<strong>90.0%</strong></li>'+
     '</ul></div>'+
+
+    '<h4>🎬 实测评估录像（代表性样本）</h4>'+
+    '<p>以下是在 L40 上完成的 Pi0.5 评估录像（使用定制版 transformers <code>fix/lerobot_openpi</code>）：</p>'+
+    '<div style="display:flex;flex-wrap:wrap;gap:12px;margin:16px 0">'+
+    '<figure style="flex:1;min-width:200px;margin:0"><video src="videos/pi05/task0_perfect.mp4" controls preload="metadata" style="width:100%;border-radius:8px;background:#000"></video><figcaption style="font-size:.75rem;color:var(--muted);text-align:center;margin-top:4px">✅ Task 0: 完美执行 (100%)</figcaption></figure>'+
+    '<figure style="flex:1;min-width:200px;margin:0"><video src="videos/pi05/task3_partial.mp4" controls preload="metadata" style="width:100%;border-radius:8px;background:#000"></video><figcaption style="font-size:.75rem;color:var(--muted);text-align:center;margin-top:4px">⚠️ Task 3: 基本稳定 (80%)</figcaption></figure>'+
+    '<figure style="flex:1;min-width:200px;margin:0"><video src="videos/pi05/task8_worst.mp4" controls preload="metadata" style="width:100%;border-radius:8px;background:#000"></video><figcaption style="font-size:.75rem;color:var(--muted);text-align:center;margin-top:4px">❌ Task 8: 最低成功率 (60%)</figcaption></figure>'+
+    '</div>'+
+    '<p style="font-size:.8rem;color:var(--muted)">💡 点击视频播放。完整 50 个评估视频见 <a href="https://github.com/howe12/vla-course/tree/main/codes/outputs/eval/2026-06-30/14-50-39_libero_pi05/videos">GitHub 仓库</a>。</p>'+
     '</section>'+
 
     '<section><h3>6.8 调试实战：12 个补丁的排查故事</h3>'+
@@ -1129,7 +1148,7 @@ function r_ch7(area,ch){
     '</section>'+
 
     '<section><h3>7.3 推理管线</h3>'+
-    '<p>真机推理管线和 §3.4 的 LIBERO 仿真管线原理相同，但多了三个物理世界的挑战：多相机同步、实时通信、安全校验。</p>'+
+    '<p>真机推理管线和 §4.4 的 LIBERO 仿真管线原理相同，但多了三个物理世界的挑战：多相机同步、实时通信、安全校验。</p>'+
     '<h4>完整管线图</h4>'+
     '<pre><code>┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐\n│ 相机 1   │   │ 相机 2   │   │ 相机 3   │   │ 相机 4   │\n│ (前方)   │   │ (左侧)   │   │ (右侧)   │   │ (腕部)   │\n└────┬─────┘   └────┬─────┘   └────┬─────┘   └────┬─────┘\n     │               │               │               │\n     └───────────────┴───────┬───────┴───────────────┘\n                             │\n                    ┌────────▼────────┐\n                    │  图像预处理      │\n                    │  · resize 224    │\n                    │  · 拼接/选主     │\n                    │  · 归一化        │\n                    └────────┬────────┘\n                             │\n                    ┌────────▼────────┐\n                    │  VLA 推理        │\n                    │  · TensorRT INT8 │\n                    │  · 20-40ms       │\n                    │  · 输出: 7 维动作│\n                    └────────┬────────┘\n                             │\n                    ┌────────▼────────┐\n                    │  安全检查        │\n                    │  · 力限制        │\n                    │  · 速度钳制      │\n                    │  · 急停检测      │\n                    └────────┬────────┘\n                             │\n                    ┌────────▼────────┐\n                    │  IK + 关节控制   │\n                    │  · 动作→关节角   │\n                    │  · 100Hz 发送    │\n                    └────────┬────────┘\n                             │\n                    ┌────────▼────────┐\n                    │  🦾 Gemini 执行  │\n                    └─────────────────┘</code></pre>'+
     '<h4>延迟预算</h4>'+
@@ -1248,8 +1267,8 @@ function r_ch8(area,ch){
     '<ol style="padding-left:1.5em;line-height:2.2">'+
     '<li><strong>§1 理论</strong>：VLA 的定义、架构、训练三阶段——你知道了这个领域的地图</li>'+
     '<li><strong>§2 仿真</strong>：MuJoCo + LIBERO + 课程机械臂——你有了自己的实验沙盒</li>'+
-    '<li><strong>§3 推理</strong>：OpenVLA 7B 零样本推理——你第一次看到大模型控制机器人</li>'+
-    '<li><strong>§4 算力</strong>：L40 云端环境——你有了训练 VLA 的硬件基础设施</li>'+
+    '<li><strong>§4 推理</strong>：OpenVLA 7B 推理实战——你第一次看到大模型控制机器人</li>'+
+    '<li><strong>§3 算力</strong>：L40 云端环境——你有了训练 VLA 的硬件基础设施</li>'+
     '<li><strong>§5 训练(自回归)</strong>：SmolVLA 从数据到评估的完整闭环——你能独立训练 VLA</li>'+
     '<li><strong>§6 训练(扩散)</strong>：Pi0 + Flow Matching——你理解了 VLA 的第二范式</li>'+
     '<li><strong>§7 真机</strong>：Gemini 部署——仿真里的模型驱动了实体机器人</li>'+
