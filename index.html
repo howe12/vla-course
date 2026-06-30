@@ -995,9 +995,7 @@ function r_ch6(area,ch){
     '<h4>🔧 环境准备（四步走）</h4>'+
     '<div class="callout tip"><div class="lb">⚠️ 关键：transformers 必须用定制版</div><p style="margin:0">Pi0.5 依赖 Physical Intelligence 对 transformers 的补丁（PaliGemma 修改、SigLIP 集成），<strong>不能用 PyPI 标准版</strong>。这是最常见的踩坑点——标准版会导致 0% 成功率！</p></div>'+
     '<div class="practice-box"><div class="pb-title">🧪 第一步：安装定制版 transformers</div>'+
-    '<pre><code># 卸载标准版，安装 fix/lerobot_openpi 分支（版本 4.53.3）
-pip uninstall transformers -y
-pip install git+https://github.com/huggingface/transformers.git@fix/lerobot_openpi</code></pre>'+
+    '<pre><code># 卸载标准版，安装 fix/lerobot_openpi 分支（版本 4.53.3）\npip uninstall transformers -y\npip install git+https://github.com/huggingface/transformers.git@fix/lerobot_openpi</code></pre>'+
     '<p>如果服务器无法直连 GitHub，先下载 ZIP 包传到服务器再 <code>pip install .</code>。</p></div>'+
 
     '<div class="practice-box"><div class="pb-title">🧪 第二步：下载模型权重和 tokenizer</div><ol class="steps">'+
@@ -1013,15 +1011,7 @@ pip install git+https://github.com/huggingface/transformers.git@fix/lerobot_open
     '</ol></div>'+
 
     '<div class="practice-box"><div class="pb-title">🧪 第四步：启动评估</div>'+
-    '<pre><code># ⚠️ 注意：export 必须用单独的语句，不能和 cd 写在同一行
-export MUJOCO_GL=osmesa
-cd /root/gpufree-data/vla-course/codes
-.venv/bin/lerobot-eval \
-  --policy.path=/root/gpufree-data/models/pi05_libero \
-  --env.type=libero \
-  --env.task=libero_spatial \
-  --eval.n_episodes=5 \
-  --eval.batch_size=1</code></pre>'+
+    '<pre><code># ⚠️ 注意：export 必须用单独的语句，不能和 cd 写在同一行\nexport MUJOCO_GL=osmesa\ncd /root/gpufree-data/vla-course/codes\n.venv/bin/lerobot-eval \\n  --policy.path=/root/gpufree-data/models/pi05_libero \\n  --env.type=libero \\n  --env.task=libero_spatial \\n  --eval.n_episodes=5 \\n  --eval.batch_size=1</code></pre>'+
     '<p>参数解释：<code>--eval.n_episodes=5</code> 表示每个任务跑 5 次（共 50 个 episode）。<code>--eval.batch_size=1</code> 是 Pi0.5 的硬性要求——3.5B 参数的扩散模型在 L40 上只能一次跑一个环境。</p></div>'+
 
     '<div class="card"><div class="card-label">📊 实测结果（L40, 2026-06-30）</div>'+
@@ -1065,9 +1055,7 @@ cd /root/gpufree-data/vla-course/codes
 
     '<h4>✅ 真正的修复：一行命令替代 12 个补丁</h4>'+
     '<p>搜索 GitHub 后发现了关键信息——Pi0/Pi0.5 <strong>不是给标准 transformers 设计的</strong>。它们需要 transformers 的 <code>fix/lerobot_openpi</code> 分支（版本 4.53.3），该分支包含了 Physical Intelligence 对 PaliGemma、SigLIP、Cache API 等的所有补丁。</p>'+
-    '<pre><code># 这一行命令解决了全部 12 个问题
-pip install git+https://github.com/huggingface/transformers.git@fix/lerobot_openpi
-# 然后恢复原始 modeling_pi05.py，不需要任何手动补丁</code></pre>'+
+    '<pre><code># 这一行命令解决了全部 12 个问题\npip install git+https://github.com/huggingface/transformers.git@fix/lerobot_openpi\n# 然后恢复原始 modeling_pi05.py，不需要任何手动补丁</code></pre>'+
     '<p>安装后恢复代码、重跑评估：<strong>90.0% 成功率</strong>，27 分钟跑完。</p>'+
 
     '<div class="card"><div class="card-label">🔑 工程教训</div><ol style="padding-left:1.5em;line-height:2">'+
