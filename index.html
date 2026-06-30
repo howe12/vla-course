@@ -331,8 +331,8 @@ function r_ch1(area,ch){
     '<li><strong>验证</strong>：<code>uv run python -c \"print(\'✅ 环境就绪\')\"</code></li>'+
     '</ol></div>'+
     '<div class="card"><div class="card-label">📁 约定的目录结构</div><p>本课程约定工作根目录为 <code>~/vla-course/codes/</code>（你可以用自己喜欢的位置，只需把后续命令中的路径替换即可）。所有实验脚本按章节分目录：<code>step1_basics/</code>、<code>step2_sim/</code>、<code>step3_l40/</code> 等。每个实验都有独立的 Python 脚本——你只需 <code>uv run python stepX_xxx/实验名.py</code> 就能跑。</p></div>'+
-    '<div class="callout\"><div class="lb\">💡 两种运行方式任选一种</div><p style=\"margin:0\">本课程统一使用 <code>uv run python</code> 运行脚本（自动使用项目虚拟环境，无需手动激活）。如果你习惯传统方式，也可以 <code>source .venv/bin/activate && python</code>——效果一样，一个命令的事。</p></div>'+
-    '</section>''+
+    '<div class="callout"><div class="lb">💡 两种运行方式任选一种</div><p style="margin:0">本课程统一使用 <code>uv run python</code> 运行脚本（自动使用项目虚拟环境，无需手动激活）。如果你习惯传统方式，也可以 <code>source .venv/bin/activate && python</code>——效果一样，一个命令的事。</p></div>'+
+    '</section>'+
     '<div class="transition-note"><strong>🔄 从 VLN 和模仿学习出发</strong> 你已经让机器人在 Habitat 里听懂指令导航（VLN），也让机械臂复现过人类的演示轨迹（模仿学习）。现在把这两条线<strong>拧成一股绳</strong>——用一个统一的大模型同时理解语言、看懂图像、输出动作。</div>'+
     '<div class="ch-header"><div class="ch-num">第 '+ch.num+' 章</div><h2>'+ch.title+'</h2><p class="ch-desc">'+ch.desc+'</p></div>'+
     '<div class="callout tip"><div class="lb">🎯 学习目标</div><ul style="margin:8px 0 0 1.2em;line-height:1.9"><li>理解 VLA 的定义、数学形式，与 VLN / VLM / 模仿学习的本质区别</li><li>掌握 VLA 三模态架构：视觉编码器 → LLM 主干 → 动作预测头</li><li>理解动作离散化的原理（256 桶方案）及其与 LLM Token 的统一</li><li>了解 RT-1→RT-2→OpenVLA→π0 的技术演进和设计取舍</li><li>清楚连续动作 vs 离散动作的工程权衡，以及实时推理的优化手段</li></ul></div>'+
