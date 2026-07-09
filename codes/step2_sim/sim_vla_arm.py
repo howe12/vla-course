@@ -39,7 +39,15 @@ MODEL_PATH = os.path.join(
 
 
 def load_model():
-    """加载 6-DOF 机械臂 MuJoCo 模型"""
+    """加载 6-DOF 机械臂 MuJoCo 模型
+
+    返回:
+        model: MjModel — 模型的"蓝图"（几何、关节、物理参数）
+        data:  MjData  — 模型的"快照"（当前时刻的位置、速度、力）
+
+    关键概念：Model 在仿真全程不变（像建筑蓝图），
+             Data 每步都在变（像建筑物的实时监控画面）。
+    """
     if not os.path.exists(MODEL_PATH):
         print(f"❌ 模型文件不存在: {MODEL_PATH}")
         sys.exit(1)
@@ -50,7 +58,17 @@ def load_model():
 
 
 def get_end_effector_pos(data):
-    """获取末端执行器在世界坐标系中的位置"""
+    """获取末端执行器在世界坐标系中的位置
+
+    MuJoCo 中用 site（位点）标记关键位置。
+    end_effector 是 widowx_arm.xml 中定义的 site，
+    位于夹爪尖端，用来追踪"手在哪里"。
+
+    返回:
+        ndarray(3,): 末端执行器的 (x, y, z) 世界坐标
+
+    为什么用 .copy()？防止意外修改 MuJoCo 内部数据。
+    """
     site_id = mujoco.mj_name2id(
         data.model, mujoco.mjtObj.mjOBJ_SITE, "end_effector"
     )
@@ -60,37 +78,46 @@ def get_end_effector_pos(data):
 def vla_predict(data, step_count):
     """模拟 VLA 推理：根据当前状态输出目标关节角
 
+    ⚠️ 这是本课程的"VLA 替身"。
     在实际课程中，这里会被替换为 OpenVLA/SmolVLA 模型推理。
-    目前用简单的目标追踪逻辑模拟"VLA 理解了任务指令后的动作序列"。
+    目前用渐进轨迹模拟 VLA 理解了"把末端移到红色方块"后的动作序列。
 
-    关节约定（WidowX MuJoCo 模型）：
-    - joint1: waist（绕 Z 轴）— 正角 = 逆时针
-    - joint2: shoulder（绕 Y 轴）— 正角 = 向前（+X 方向）倾斜
-    - joint3: elbow（绕 Y 轴）— 正角 = 继续向前弯曲
-    - joint4: wrist_roll（绕 Z 轴）— 末端旋转
-    - joint5: wrist_pitch（绕 Y 轴）— 末端俯仰
-    - joint6: wrist_yaw（绕 Z 轴）— 末端偏航
+    参数:
+        data:       MjData 快照（用于获取当前末端位置）
+        step_count: 当前步数（用于计算时间进度）
+
+    返回:
+        q:    6 个关节的目标角度 (ndarray, shape=(6,))
+        dist: 末端到目标的欧氏距离 (float)
+
+    关节约定：
+        joint1: waist      — 绕 Z 轴，正角=逆时针，转向目标
+        joint2: shoulder   — 绕 Y 轴，正角=向前（+X 方向）倾斜
+        joint3: elbow      — 绕 Y 轴，正角=继续向前弯曲
+        joint4: wrist_roll — 绕 Z 轴，末端自转
+        joint5: wrist_pitch— 绕 Y 轴，末端俯仰
+        joint6: wrist_yaw  — 绕 Z 轴，末端偏航
     """
-    # 任务目标：红色方块位置
+    # 任务目标：红色方块在桌子上的位置
     target = np.array([0.35, 0.1, 0.08])
     ee = get_end_effector_pos(data)
     dist = np.linalg.norm(ee - target)
 
-    t = step_count * 0.02  # 20 Hz 控制频率
-    progress = min(t / 3.0, 1.0)  # 0→1 渐进因子
+    t = step_count * 0.02       # 控制频率 20 Hz
+    progress = min(t / 3.0, 1)  # 渐进因子 0→1，3 秒完成
 
-    q = np.zeros(6)
+    q = np.zeros(6)  # 6 个关节角
 
-    # joint1: 基座转向目标方向
+    # joint1: 基座旋转 — 转向目标方向（逆时针为正）
     q[0] = math.atan2(target[1], target[0]) * (1 - math.exp(-t * 1.5))
 
-    # joint2: 肩部前倾（正角 = 向 +X 倾斜），从直立渐进到前伸
+    # joint2: 肩部俯仰 — 正角向前（+X 方向）倾斜
     q[1] = 0.8 * progress
 
-    # joint3: 肘部弯曲（正角 = 继续向前），保持末端接近桌面高度
+    # joint3: 肘部俯仰 — 正角继续向前弯曲，保持末端接近桌面高度
     q[2] = 0.6 * progress
 
-    # joint4-6: 腕部保持稳定，末端下指
+    # joint4-6: 腕部 — 保持稳定，末端下指
     q[3] = 0.0
     q[4] = -0.3 * progress
     q[5] = 0.0
@@ -99,25 +126,32 @@ def vla_predict(data, step_count):
 
 
 def run_headless(model, data, steps=300):
-    """无头模式：离屏渲染，保存帧供后续生成视频"""
+    """无头模式：离屏渲染
+
+    云容器没有显示器，必须用 OSMesa 软件渲染。
+    每 10 步渲染一帧，共生成 steps/10 帧。
+
+    这个循环就是 VLA 控制闭环的仿真版：
+        观测 → 推理 → 执行 → 渲染
+    Ch3-Ch6 只替换步骤 2（推理），其他三步不变。
+    """
     print("🎬 无头模式：渲染仿真帧...")
 
     renderer = mujoco.Renderer(model, height=480, width=640)
     frames = []
 
     for step in range(steps):
-        q_target, dist = vla_predict(data, step)
+        q_target, dist = vla_predict(data, step)   # 1. VLA 推理 → 目标关节角
 
-        # PD 控制：平滑追踪目标关节角
+        # 2. PD 控制：将关节角平滑驱动到目标值
         for i in range(6):
             data.ctrl[i] = q_target[i]
 
-        mujoco.mj_step(model, data)
+        mujoco.mj_step(model, data)                 # 3. 物理仿真一步
 
-        if step % 10 == 0:
-            # 使用默认自由相机（侧视角），而非 wrist_cam 近距视角
-            renderer.update_scene(data)
-            frame = renderer.render()
+        if step % 10 == 0:                          # 4. 每 10 步渲染一次
+            renderer.update_scene(data)              #   更新场景
+            frame = renderer.render()                #   渲染为像素数组
             frames.append(frame.copy())
 
             ee = get_end_effector_pos(data)
@@ -128,7 +162,6 @@ def run_headless(model, data, steps=300):
             )
 
     print(f"\n渲染完成！共 {len(frames)} 帧")
-    print(f"提示: 在有图形环境的机器上运行 'uv run python codes/step2_sim/sim_vla_arm.py' 查看实时动画")
     return frames
 
 
