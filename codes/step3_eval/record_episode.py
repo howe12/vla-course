@@ -95,10 +95,10 @@ def compute_control(step, total_steps, policy="approach"):
     if policy == "approach":
         # 渐进策略：从竖直位姿平滑伸向目标
         q[0] = math.atan2(target_xy[1], target_xy[0]) * (1 - math.exp(-t * 1.5))
-        q[1] = 0.8 * progress
-        q[2] = 0.6 * progress
+        q[1] = 1.2 * progress          # 更大幅度的肩部前倾
+        q[2] = 1.0 * progress          # 更大的肘部弯曲
         q[3] = 0.0
-        q[4] = -0.3 * progress
+        q[4] = -0.5 * progress         # 末端下指
         q[5] = 0.0
 
     elif policy == "sine":

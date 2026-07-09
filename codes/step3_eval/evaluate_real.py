@@ -61,8 +61,9 @@ def load_episodes(data_dir):
                 "frame_index": i,
                 "ee_pos": ee_pos[i],
                 "gripper_state": gripper_state,
-                "cup_pos": target_pos[i],           # 目标方块 = "杯子"
-                "cup_orientation": target_orient[i],  # 3x3 旋转矩阵
+                "gripper_dist": float(gripper_dist[i]),
+                "cup_pos": target_pos[i],
+                "cup_orientation": target_orient[i],
             })
 
         episodes.append(frames)
