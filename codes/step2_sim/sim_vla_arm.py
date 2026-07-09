@@ -3,8 +3,8 @@
 
 用一个简单的 6-DOF 机械臂模型，模拟 VLA 控制循环：
 1. 加载 MuJoCo 模型（widowx_arm.xml）
-2. 模拟"VLA 推理"（随机目标位置 → 关节角）
-3. 在 Viewer 中实时观看机械臂移动
+2. 模拟"VLA 推理"（目标位置 → 关节角）
+3. 在 Viewer 中实时观看机械臂移动，或离屏渲染
 
 用法（需要图形环境）：
     uv run python codes/step2_sim/sim_vla_arm.py
@@ -62,27 +62,37 @@ def vla_predict(data, step_count):
 
     在实际课程中，这里会被替换为 OpenVLA/SmolVLA 模型推理。
     目前用简单的目标追踪逻辑模拟"VLA 理解了任务指令后的动作序列"。
+
+    关节约定（WidowX MuJoCo 模型）：
+    - joint1: waist（绕 Z 轴）— 正角 = 逆时针
+    - joint2: shoulder（绕 Y 轴）— 正角 = 向前（+X 方向）倾斜
+    - joint3: elbow（绕 Y 轴）— 正角 = 继续向前弯曲
+    - joint4: wrist_roll（绕 Z 轴）— 末端旋转
+    - joint5: wrist_pitch（绕 Y 轴）— 末端俯仰
+    - joint6: wrist_yaw（绕 Z 轴）— 末端偏航
     """
-    # 模拟任务："把末端移到目标方块附近"
-    target = np.array([0.35, 0.1, 0.08])  # 目标方块位置
+    # 任务目标：红色方块位置
+    target = np.array([0.35, 0.1, 0.08])
     ee = get_end_effector_pos(data)
     dist = np.linalg.norm(ee - target)
 
-    # 用简单的位置伺服：让末端逐渐靠近目标
-    t = step_count * 0.02  # 20 Hz
+    t = step_count * 0.02  # 20 Hz 控制频率
+    progress = min(t / 3.0, 1.0)  # 0→1 渐进因子
 
-    # 机械臂建在原点 (0,0,0.05)，需要大的关节运动才能到达目标
-    # joint1: 基座旋转 → 指向目标方向
-    # joint2: 肩部 → 向前伸
-    # joint3: 肘部 → 弯向目标高度
     q = np.zeros(6)
 
-    # 目标在 (0.35, 0.1, 0.08)，机械臂需要前伸+右转
-    q[0] = math.atan2(target[1], target[0]) * (1 - math.exp(-t * 2))  # 逐渐转向目标
-    q[1] = -1.2 + 0.3 * math.sin(t * 0.2)  # 肩部下压前伸
-    q[2] = -1.5 + 0.4 * math.sin(t * 0.3)  # 肘部弯折
-    q[3] = 0.0  # 腕稳定
-    q[4] = -0.5  # 末端下指
+    # joint1: 基座转向目标方向
+    q[0] = math.atan2(target[1], target[0]) * (1 - math.exp(-t * 1.5))
+
+    # joint2: 肩部前倾（正角 = 向 +X 倾斜），从直立渐进到前伸
+    q[1] = 0.8 * progress
+
+    # joint3: 肘部弯曲（正角 = 继续向前），保持末端接近桌面高度
+    q[2] = 0.6 * progress
+
+    # joint4-6: 腕部保持稳定，末端下指
+    q[3] = 0.0
+    q[4] = -0.3 * progress
     q[5] = 0.0
 
     return q, dist
@@ -105,7 +115,8 @@ def run_headless(model, data, steps=300):
         mujoco.mj_step(model, data)
 
         if step % 10 == 0:
-            renderer.update_scene(data, camera="wrist_cam")
+            # 使用默认自由相机（侧视角），而非 wrist_cam 近距视角
+            renderer.update_scene(data)
             frame = renderer.render()
             frames.append(frame.copy())
 
@@ -128,14 +139,12 @@ def run_viewer(model, data, steps=1000):
     print("   按 ESC 退出\n")
 
     with mujoco.viewer.launch_passive(model, data) as viewer:
-        # 重置到初始姿态
         mujoco.mj_resetData(model, data)
 
         step = 0
         while viewer.is_running():
             q_target, dist = vla_predict(data, step)
 
-            # PD 控制
             for i in range(6):
                 data.ctrl[i] = q_target[i]
 
@@ -193,7 +202,7 @@ def main():
     print("│     ↑                            ↓           │")
     print("│     └──── 末端位置 ←── [MuJoCo PD 控制]      │")
     print("│                                              │")
-    print("│  当前用正弦轨迹模拟 VLA 输出。               │")
+    print("│  当前用渐进式轨迹模拟 VLA 输出。              │")
     print("│  第 3 章的 OpenVLA 推理会替换这个 mock。      │")
     print("└─────────────────────────────────────────────┘\n")
 
