@@ -1,0 +1,26 @@
+[project]
+name = "vla-course"
+version = "0.1.0"
+description = "VLA 视觉-语言-动作大模型课程 — 实验代码"
+requires-python = ">=3.10"
+
+[dependencies]
+torch = ">=2.0"
+torchvision = ">=0.15"
+numpy = ">=1.24"
+pillow = ">=10.0"
+transformers = ">=4.40"
+accelerate = ">=0.25"
+peft = ">=0.10"
+bitsandbytes = ">=0.41"
+datasets = ">=2.14"
+mujoco = ">=3.0"
+
+[project.optional-dependencies]
+lerobot = ["lerobot>=0.2"]
+libero = ["libero>=1.0"]
+gpustat = ["gpustat>=1.0"]
+wandb = ["wandb>=0.15"]
+
+[tool.uv]
+dev-dependencies = []

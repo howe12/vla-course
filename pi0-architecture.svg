@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 950 580">
+  <defs>
+    <marker id="c1" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#22d3ee"/></marker>
+    <marker id="c2" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#a78bfa"/></marker>
+    <marker id="c3" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#34d399"/></marker>
+    <marker id="c4" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#fb7185"/></marker>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5"/></pattern>
+    <linearGradient id="g-high" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#a78bfa" stop-opacity="0.12"/><stop offset="100%" stop-color="#a78bfa" stop-opacity="0.03"/></linearGradient>
+    <linearGradient id="g-base" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#34d399" stop-opacity="0.12"/><stop offset="100%" stop-color="#34d399" stop-opacity="0.03"/></linearGradient>
+  </defs>
+  <rect width="100%" height="100%" fill="#020617"/>
+  <rect width="100%" height="100%" fill="url(#grid)"/>
+
+  <!-- Input -->
+  <rect x="30" y="40" width="200" height="65" rx="8" fill="rgba(30,41,59,0.6)" stroke="#94a3b8" stroke-width="1.5"/>
+  <text x="130" y="65" fill="white" font-size="11" font-weight="600" text-anchor="middle" font-family="sans-serif">📷 RGB + 🤖 本体感知</text>
+  <text x="130" y="83" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="sans-serif">图像 224×224 + 关节角/速度</text>
+
+  <line x1="230" y1="72" x2="278" y2="72" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#c1)"/>
+
+  <!-- π0-High box -->
+  <rect x="280" y="25" width="340" height="200" rx="10" fill="url(#g-high)" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="6,3"/>
+  <text x="290" y="48" fill="#a78bfa" font-size="11" font-weight="700" font-family="sans-serif">π0-High · 低频规划层 (1-5 Hz)</text>
+  
+  <rect x="300" y="65" width="300" height="145" rx="8" fill="rgba(76,29,149,0.3)" stroke="#a78bfa" stroke-width="1.5"/>
+  <rect x="302" y="67" width="296" height="141" rx="7" fill="#0f172a"/>
+  <rect x="302" y="67" width="296" height="141" rx="7" fill="rgba(76,29,149,0.3)"/>
+  <text x="450" y="95" fill="white" font-size="12" font-weight="700" text-anchor="middle" font-family="sans-serif">Flow Matching Transformer</text>
+  <text x="450" y="115" fill="#94a3b8" font-size="9" text-anchor="middle" font-family="sans-serif">扩散生成 · 5-50 步去噪</text>
+  <text x="450" y="135" fill="#94a3b8" font-size="9" text-anchor="middle" font-family="sans-serif">任务理解 + 全局规划</text>
+  <text x="450" y="155" fill="#a78bfa" font-size="9" text-anchor="middle" font-family="sans-serif">输出: 未来 1s 粗粒度动作序列</text>
+  <text x="450" y="175" fill="#475569" font-size="8" text-anchor="middle" font-family="sans-serif">每次推理 ~50-200ms</text>
+  <text x="450" y="195" fill="#475569" font-size="8" text-anchor="middle" font-family="sans-serif">"领导做规划"</text>
+
+  <!-- Sub-goal arrow -->
+  <line x1="450" y1="225" x2="450" y2="263" stroke="#a78bfa" stroke-width="2" marker-end="url(#c2)"/>
+  <text x="465" y="248" fill="#a78bfa" font-size="9" font-weight="600" font-family="sans-serif">子目标序列</text>
+
+  <!-- π0-Base box -->
+  <rect x="280" y="265" width="340" height="160" rx="10" fill="url(#g-base)" stroke="#34d399" stroke-width="1.5" stroke-dasharray="6,3"/>
+  <text x="290" y="288" fill="#34d399" font-size="11" font-weight="700" font-family="sans-serif">π0-Base · 高频执行层 (100 Hz)</text>
+  
+  <rect x="300" y="305" width="300" height="105" rx="8" fill="rgba(6,78,59,0.4)" stroke="#34d399" stroke-width="1.5"/>
+  <rect x="302" y="307" width="296" height="101" rx="7" fill="#0f172a"/>
+  <rect x="302" y="307" width="296" height="101" rx="7" fill="rgba(6,78,59,0.4)"/>
+  <text x="450" y="335" fill="white" font-size="12" font-weight="700" text-anchor="middle" font-family="sans-serif">轻量 MLP 策略</text>
+  <text x="450" y="355" fill="#94a3b8" font-size="9" text-anchor="middle" font-family="sans-serif">接收 π0-High 的子目标</text>
+  <text x="450" y="375" fill="#94a3b8" font-size="9" text-anchor="middle" font-family="sans-serif">100Hz 精细轨迹跟踪</text>
+  <text x="450" y="395" fill="#34d399" font-size="9" text-anchor="middle" font-family="sans-serif">输出: 关节力矩（直接驱动机器人）</text>
+
+  <!-- Arrow to robot -->
+  <line x1="620" y1="345" x2="688" y2="345" stroke="#34d399" stroke-width="2" marker-end="url(#c3)"/>
+
+  <!-- Robot execution -->
+  <rect x="690" y="315" width="140" height="60" rx="6" fill="rgba(136,19,55,0.4)" stroke="#fb7185" stroke-width="2"/>
+  <rect x="692" y="317" width="136" height="56" rx="5" fill="#0f172a"/>
+  <rect x="692" y="317" width="136" height="56" rx="5" fill="rgba(136,19,55,0.4)"/>
+  <text x="760" y="342" fill="white" font-size="12" font-weight="700" text-anchor="middle" font-family="sans-serif">🦾 机械臂</text>
+  <text x="760" y="360" fill="#fb7185" font-size="9" text-anchor="middle" font-family="sans-serif">关节力矩驱动</text>
+
+  <!-- Feedback arrow -->
+  <path d="M 830 315 L 830 72 L 660 72" fill="none" stroke="#fb7185" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#c4)"/>
+  <text x="830" y="195" fill="#475569" font-size="7" font-family="sans-serif" transform="rotate(-90,830,195)">状态反馈</text>
+
+  <!-- Key insight -->
+  <rect x="30" y="460" width="890" height="50" rx="8" fill="rgba(15,23,42,0.8)" stroke="#1e293b" stroke-width="1"/>
+  <text x="50" y="482" fill="#94a3b8" font-size="9" font-weight="600" font-family="sans-serif">🔑 为什么需要双系统？</text>
+  <text x="50" y="500" fill="#475569" font-size="8" font-family="sans-serif">扩散模型一次推理 50-200ms —— 100Hz 控制（每 10ms）根本等不及。π0-High 慢但聪明（规划），π0-Base 快但简单（执行），分工明确。</text>
+
+  <!-- Legend -->
+  <rect x="30" y="530" width="14" height="10" rx="2" fill="rgba(76,29,149,0.3)" stroke="#a78bfa" stroke-width="1"/>
+  <text x="50" y="539" fill="#94a3b8" font-size="8" font-family="sans-serif">π0-High 规划层</text>
+  <rect x="180" y="530" width="14" height="10" rx="2" fill="rgba(6,78,59,0.4)" stroke="#34d399" stroke-width="1"/>
+  <text x="200" y="539" fill="#94a3b8" font-size="8" font-family="sans-serif">π0-Base 执行层</text>
+  <rect x="340" y="530" width="14" height="10" rx="2" fill="rgba(136,19,55,0.4)" stroke="#fb7185" stroke-width="1"/>
+  <text x="360" y="539" fill="#94a3b8" font-size="8" font-family="sans-serif">机械臂执行</text>
+  <line x1="450" y1="535" x2="470" y2="535" stroke="#fb7185" stroke-width="1" stroke-dasharray="3,3"/>
+  <text x="476" y="539" fill="#94a3b8" font-size="8" font-family="sans-serif">状态反馈</text>
+</svg>

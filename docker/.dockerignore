@@ -1,0 +1,28 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Large binaries (excluded from Docker context)
+**/videos/
+**/_screenshots/
+**/figs/
+**/outputs/
+
+# Python cache
+__pycache__/
+*.pyc
+*.egg-info/
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

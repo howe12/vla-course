@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 750 700">
+  <defs>
+    <marker id="d1" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#22d3ee"/></marker>
+    <marker id="d2" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#fbbf24"/></marker>
+    <marker id="d3" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#34d399"/></marker>
+    <marker id="d4" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#fb7185"/></marker>
+    <marker id="d5" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#a78bfa"/></marker>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5"/></pattern>
+  </defs>
+  <rect width="100%" height="100%" fill="#020617"/>
+  <rect width="100%" height="100%" fill="url(#grid)"/>
+
+  <text x="375" y="35" fill="white" font-size="13" font-weight="700" text-anchor="middle" font-family="sans-serif">Gemini 真机推理管线</text>
+
+  <!-- 4 Cameras -->
+  <rect x="40" y="60" width="145" height="55" rx="6" fill="rgba(8,51,68,0.5)" stroke="#22d3ee" stroke-width="1.5"/>
+  <text x="112" y="82" fill="white" font-size="10" font-weight="600" text-anchor="middle" font-family="sans-serif">📷 相机 1</text>
+  <text x="112" y="100" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="sans-serif">前方视角</text>
+
+  <rect x="212" y="60" width="145" height="55" rx="6" fill="rgba(8,51,68,0.5)" stroke="#22d3ee" stroke-width="1.5"/>
+  <text x="284" y="82" fill="white" font-size="10" font-weight="600" text-anchor="middle" font-family="sans-serif">📷 相机 2</text>
+  <text x="284" y="100" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="sans-serif">左侧视角</text>
+
+  <rect x="382" y="60" width="145" height="55" rx="6" fill="rgba(8,51,68,0.5)" stroke="#22d3ee" stroke-width="1.5"/>
+  <text x="454" y="82" fill="white" font-size="10" font-weight="600" text-anchor="middle" font-family="sans-serif">📷 相机 3</text>
+  <text x="454" y="100" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="sans-serif">右侧视角</text>
+
+  <rect x="552" y="60" width="145" height="55" rx="6" fill="rgba(8,51,68,0.5)" stroke="#22d3ee" stroke-width="1.5"/>
+  <text x="624" y="82" fill="white" font-size="10" font-weight="600" text-anchor="middle" font-family="sans-serif">📷 相机 4</text>
+  <text x="624" y="100" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="sans-serif">腕部视角</text>
+
+  <!-- Merging lines -->
+  <line x1="112" y1="115" x2="112" y2="140" stroke="#22d3ee" stroke-width="1"/>
+  <line x1="284" y1="115" x2="284" y2="140" stroke="#22d3ee" stroke-width="1"/>
+  <line x1="454" y1="115" x2="454" y2="140" stroke="#22d3ee" stroke-width="1"/>
+  <line x1="624" y1="115" x2="624" y2="140" stroke="#22d3ee" stroke-width="1"/>
+  <line x1="112" y1="140" x2="624" y2="140" stroke="#22d3ee" stroke-width="1"/>
+  <line x1="375" y1="140" x2="375" y2="168" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#d1)"/>
+  <text x="640" y="143" fill="#475569" font-size="7" font-family="sans-serif">4 路同步 ~30ms</text>
+
+  <!-- Image Preprocessing -->
+  <rect x="220" y="170" width="310" height="65" rx="8" fill="rgba(120,53,15,0.3)" stroke="#fbbf24" stroke-width="1.5"/>
+  <rect x="222" y="172" width="306" height="61" rx="7" fill="#0f172a"/>
+  <rect x="222" y="172" width="306" height="61" rx="7" fill="rgba(120,53,15,0.3)"/>
+  <text x="375" y="198" fill="white" font-size="12" font-weight="700" text-anchor="middle" font-family="sans-serif">图像预处理</text>
+  <text x="375" y="216" fill="#94a3b8" font-size="9" text-anchor="middle" font-family="sans-serif">resize 224 · 拼接/选主 · 归一化</text>
+  <text x="375" y="232" fill="#fbbf24" font-size="8" text-anchor="middle" font-family="sans-serif">~3ms</text>
+
+  <!-- Arrow -->
+  <line x1="375" y1="235" x2="375" y2="263" stroke="#fbbf24" stroke-width="1.5" marker-end="url(#d2)"/>
+
+  <!-- VLA Inference -->
+  <rect x="220" y="265" width="310" height="65" rx="8" fill="rgba(6,78,59,0.5)" stroke="#34d399" stroke-width="2"/>
+  <rect x="222" y="267" width="306" height="61" rx="7" fill="#0f172a"/>
+  <rect x="222" y="267" width="306" height="61" rx="7" fill="rgba(6,78,59,0.5)"/>
+  <text x="375" y="293" fill="white" font-size="12" font-weight="700" text-anchor="middle" font-family="sans-serif">VLA 推理</text>
+  <text x="375" y="311" fill="#94a3b8" font-size="9" text-anchor="middle" font-family="sans-serif">TensorRT INT8 · 20-40ms · 输出 7 维动作</text>
+  <text x="375" y="327" fill="#34d399" font-size="8" text-anchor="middle" font-family="sans-serif">~25ms (累计 58ms)</text>
+
+  <!-- Arrow -->
+  <line x1="375" y1="330" x2="375" y2="358" stroke="#34d399" stroke-width="1.5" marker-end="url(#d3)"/>
+
+  <!-- Safety Check -->
+  <rect x="220" y="360" width="310" height="65" rx="8" fill="rgba(136,19,55,0.3)" stroke="#fb7185" stroke-width="1.5"/>
+  <rect x="222" y="362" width="306" height="61" rx="7" fill="#0f172a"/>
+  <rect x="222" y="362" width="306" height="61" rx="7" fill="rgba(136,19,55,0.3)"/>
+  <text x="375" y="388" fill="white" font-size="12" font-weight="700" text-anchor="middle" font-family="sans-serif">安全检查</text>
+  <text x="375" y="406" fill="#94a3b8" font-size="9" text-anchor="middle" font-family="sans-serif">力限制 · 速度钳制 · 急停检测</text>
+  <text x="375" y="422" fill="#fb7185" font-size="8" text-anchor="middle" font-family="sans-serif">~1ms (累计 59ms)</text>
+
+  <!-- Arrow -->
+  <line x1="375" y1="425" x2="375" y2="453" stroke="#fb7185" stroke-width="1.5" marker-end="url(#d4)"/>
+
+  <!-- IK + Joint Control -->
+  <rect x="220" y="455" width="310" height="65" rx="8" fill="rgba(76,29,149,0.3)" stroke="#a78bfa" stroke-width="1.5"/>
+  <rect x="222" y="457" width="306" height="61" rx="7" fill="#0f172a"/>
+  <rect x="222" y="457" width="306" height="61" rx="7" fill="rgba(76,29,149,0.3)"/>
+  <text x="375" y="483" fill="white" font-size="12" font-weight="700" text-anchor="middle" font-family="sans-serif">IK + 关节控制</text>
+  <text x="375" y="501" fill="#94a3b8" font-size="9" text-anchor="middle" font-family="sans-serif">动作 → 关节角 · 100Hz 发送</text>
+  <text x="375" y="517" fill="#a78bfa" font-size="8" text-anchor="middle" font-family="sans-serif">~5ms (累计 64ms)</text>
+
+  <!-- Arrow -->
+  <line x1="375" y1="520" x2="375" y2="548" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#d5)"/>
+
+  <!-- Robot -->
+  <rect x="270" y="550" width="210" height="55" rx="8" fill="rgba(136,19,55,0.4)" stroke="#fb7185" stroke-width="2"/>
+  <rect x="272" y="552" width="206" height="51" rx="7" fill="#0f172a"/>
+  <rect x="272" y="552" width="206" height="51" rx="7" fill="rgba(136,19,55,0.4)"/>
+  <text x="375" y="578" fill="white" font-size="13" font-weight="700" text-anchor="middle" font-family="sans-serif">🦾 Gemini 执行</text>
+  <text x="375" y="596" fill="#fb7185" font-size="9" text-anchor="middle" font-family="sans-serif">总延迟 ~64ms ≈ 15Hz</text>
+
+  <!-- Latency summary -->
+  <rect x="40" y="620" width="670" height="42" rx="6" fill="rgba(15,23,42,0.8)" stroke="#1e293b" stroke-width="1"/>
+  <text x="60" y="640" fill="#94a3b8" font-size="9" font-weight="600" font-family="sans-serif">延迟预算: 相机 30ms + 预处理 3ms + VLA 25ms + 安全 1ms + IK 5ms = 64ms → 15Hz</text>
+  <text x="60" y="656" fill="#475569" font-size="8" font-family="sans-serif">15Hz 定位: 理解+规划层 · 底层 IK 100Hz 跟踪 → 覆盖 90% 日常操作</text>
+
+  <!-- Color bar at left -->
+  <rect x="20" y="170" width="4" height="65" rx="2" fill="#fbbf24"/>
+  <rect x="20" y="265" width="4" height="65" rx="2" fill="#34d399"/>
+  <rect x="20" y="360" width="4" height="65" rx="2" fill="#fb7185"/>
+  <rect x="20" y="455" width="4" height="65" rx="2" fill="#a78bfa"/>
+</svg>
