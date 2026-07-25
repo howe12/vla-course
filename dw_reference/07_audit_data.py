@@ -2,8 +2,14 @@
 """Task 07: LeRobot 数据集审计
 
 来源: Datawhale 07_data_collection_and_audit.ipynb（审计部分）
-用法: python3 dw_reference/07_audit_data.py --dataset /path/to/dataset
 前置: source /workspace/venv/bin/activate
+
+用法:
+  # 审计真实采集的数据集（需要完整的 LeRobot 数据集目录）
+  python3 dw_reference/07_audit_data.py --dataset /workspace/datasets/my_cup_pick
+
+  # 使用 Datawhale 提供的示例数据预览审计流程（无需真实数据集）
+  python3 dw_reference/07_audit_data.py --demo
 
 审计三步骤：
     1️⃣ 数据量 — episode 数、总帧数、任务分布
@@ -222,7 +228,98 @@ def audit_actions(dataset_path: str):
 
     print("\n✅ 动作范围检查完成")
 
+def demo_audit():
+    """使用 Datawhale 提供的示例数据预览审计流程"""
+    script_dir = Path(__file__).resolve().parent
+    snapshot_path = script_dir / "assets" / "collection_dataset_snapshot.json"
+    
+    snap = load_json(str(snapshot_path))
+    if not snap:
+        print(f"❌ 未找到示例数据: {snapshot_path}")
+        print("   请先运行: bash dw_reference/setup_dw.sh")
+        sys.exit(1)
+
+    print("╔" + "═" * 58 + "╗")
+    print("║  LeRobot 数据集审计 — 演示模式（Datawhale 示例数据）   ║")
+    print("╠" + "═" * 58 + "╣")
+    print(f"║  repo: {snap.get('dataset_repo_id', '?'):<46s} ║")
+    print("╚" + "═" * 58 + "╝")
+
+    # ── 1️⃣ 数据量 ──
+    print("\n" + "=" * 60)
+    print("1️⃣  数据量审计")
+    print("=" * 60)
+
+    fps = snap.get("fps", "?")
+    n_episodes = snap.get("total_episodes", 0)
+    n_frames = snap.get("total_frames", 0)
+    state_shape = snap.get("state_shape", [])
+    action_shape = snap.get("action_shape", [])
+    cameras = snap.get("stored_cameras", [])
+    tasks = snap.get("tasks", [])
+
+    print(f"\n📋 数据集概览")
+    print(f"   帧率 (fps):     {fps}")
+    print(f"   State 维度:     {state_shape}")
+    print(f"   Action 维度:    {action_shape}")
+    print(f"   相机通道:       {', '.join(cameras) if cameras else '无'}")
+    print(f"\n📦 采集统计")
+    print(f"   总 episode 数:  {n_episodes}")
+    print(f"   总帧数:         {n_frames}")
+    print(f"   平均帧数:       {n_frames / n_episodes:.0f}" if n_episodes else "   平均帧数:       N/A")
+
+    if tasks:
+        print(f"\n📊 任务列表:")
+        for t in tasks:
+            color = "🔴" if "red" in t.lower() else "🔵" if "blue" in t.lower() else "⚪"
+            print(f"   {color} {t}")
+
+    # ── 2️⃣ 视频回放 ──
+    print("\n" + "=" * 60)
+    print("2️⃣  视频回放审计（手动）")
+    print("=" * 60)
+
+    views = snap.get("recorder_views", [])
+    if views:
+        print(f"\n🎬 Datawhale 录制的四视角视频:")
+        for v in views:
+            print(f"   📹 {v}")
+        print(f"\n📺 Datawhale 仓库中有对应的四视角视频文件 (.mp4)，")
+        print(f"   可在 GitHub 上查看:")
+        print(f"   https://github.com/datawhalechina/every-embodied/tree/main/")
+        print(f"   16-专题组队学习/04-AMD-ROCm策略复刻专题/assets/")
+        print(f"\n   四问检查：接触 → 夹起 → 搬运 → 直立")
+
+    # ── 3️⃣ 动作范围 ──
+    print("\n" + "=" * 60)
+    print("3️⃣  动作 / 状态范围检查")
+    print("=" * 60)
+    print(f"\n📐 State 维度: {state_shape[0] if state_shape else '?'}")
+    print(f"📐 Action 维度: {action_shape[0] if action_shape else '?'}")
+    print(f"\n💡 演示模式仅展示数据集结构，不做实际 parquet 扫描。")
+    print(f"   真实审计时（--dataset 模式）会逐文件读取 action 值域。")
+
+    return {"total_episodes": n_episodes, "total_frames": n_frames}
+
+
 # ── 主入口 ─────────────────────────────────────────────
+
+def print_summary(q: dict, source: str = ""):
+    """打印审计总结"""
+    label = f" ({source})" if source else ""
+    print("\n" + "=" * 60)
+    print(f"📋 审计总结{label}")
+    print("=" * 60)
+    print(f"""
+   总 episodes:  {q['total_episodes']}
+   总帧数:       {q['total_frames']}
+
+   下一步:
+   ✅ 数据量 OK  → 进入 Ch3 物理成功评估
+   ✅ 视频 OK    → 确认夹取行为正确
+   ✅ 动作 OK    → 数据可用于 Ch4 训练
+""")
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -233,14 +330,24 @@ def main():
   # 审计本地采集的数据集
   python3 dw_reference/07_audit_data.py --dataset /workspace/datasets/my_cup_pick
 
-  # 审计 Datawhale 示例数据集
-  python3 dw_reference/07_audit_data.py --dataset /workspace/data/collection_2025
+  # 使用 Datawhale 示例数据预览（无需真实数据集）
+  python3 dw_reference/07_audit_data.py --demo
         """
     )
-    parser.add_argument("--dataset", required=True,
-                        help="数据集路径（包含 meta/ data/ videos/ 的目录）")
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--dataset", type=str,
+                       help="数据集路径（包含 meta/ data/ videos/ 的目录）")
+    group.add_argument("--demo", action="store_true",
+                       help="使用 Datawhale 提供的示例数据预览审计流程")
     args = parser.parse_args()
 
+    # ── 演示模式 ──
+    if args.demo:
+        q = demo_audit()
+        print_summary(q, source="Datawhale 示例数据 (demo)")
+        return
+
+    # ── 真实数据集审计 ──
     ds = args.dataset
     if not os.path.isdir(ds):
         print(f"❌ 数据集路径不存在: {ds}")
@@ -262,19 +369,7 @@ def main():
     audit_actions(ds)
 
     # ── 总结 ──
-    print("\n" + "=" * 60)
-    print("📋 审计总结")
-    print("=" * 60)
-    print(f"""
-   数据集路径:   {Path(ds).resolve()}
-   总 episodes:  {q['total_episodes']}
-   总帧数:       {q['total_frames']}
-
-   下一步:
-   ✅ 数据量 OK  → 进入 Ch3 物理成功评估
-   ✅ 视频 OK    → 确认夹取行为正确
-   ✅ 动作 OK    → 数据可用于 Ch4 训练
-""")
+    print_summary(q)
 
 
 if __name__ == "__main__":
