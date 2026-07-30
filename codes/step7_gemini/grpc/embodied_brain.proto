@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+package embodied;
+
+// 具身大小脑通信服务
+service BrainService {
+  // 单次推理：发送观测，返回动作
+  rpc Predict(Observation) returns (ActionChunk);
+  // 双向流：持续推观测，持续回动作（低延迟控制环）
+  rpc PredictStream(stream Observation) returns (stream ActionChunk);
+  // 健康检查 / echo 测试
+  rpc Ping(PingRequest) returns (PingResponse);
+}
+
+// 观测消息（Orin → 云端）
+message Observation {
+  // 多路图像（JPEG 编码，减少传输量）
+  repeated Image images = 1;
+  // 机器人关节状态（8维，对齐 smolvla_libero）
+  repeated float state = 2;
+  // 语言指令
+  string instruction = 3;
+  // 时间戳（ms，用于延迟计算）
+  int64 timestamp_ms = 4;
+}
+
+// 单路图像
+message Image {
+  string camera_name = 1;   // e.g. "image", "image2"
+  bytes jpeg_data = 2;      // JPEG 编码
+  int32 width = 3;
+  int32 height = 4;
+}
+
+// 动作块（云端 → Orin）
+message ActionChunk {
+  // 动作序列（chunk_size 个 action，每个 action_dim 维）
+  // 展平存储：actions[i*action_dim + j] = 第 i 步第 j 维
+  repeated float actions = 1;
+  int32 chunk_size = 2;     // 动作步数（e.g. 50）
+  int32 action_dim = 3;     // 动作维度（e.g. 7）
+  // 推理耗时（ms，云端计算）
+  int64 inference_ms = 4;
+  // 云端时间戳（ms）
+  int64 server_timestamp_ms = 5;
+}
+
+// Ping 测试
+message PingRequest {
+  int64 timestamp_ms = 1;
+  string payload = 2;       // 可选负载（测带宽）
+}
+
+message PingResponse {
+  int64 client_timestamp_ms = 1;  // 回显客户端时间戳
+  int64 server_timestamp_ms = 2;  // 服务端时间戳
+  string payload = 3;             // 回显负载
+}
