@@ -17,19 +17,20 @@ import time
 import cv2
 import numpy as np
 
-# 相机映射（与 camera_capture.py 一致）
+# 相机映射（稳定绑定：按 USB 序列号，拔插/重启不换）
+# 确认：左=top(顶部,外接USB Camera3 video0)，右=front(前部,集成Webcam video2)
 CAMERAS = [
-    {"name": "image", "idx": 0, "desc": "USB Camera3 (video0)"},
-    {"name": "image2", "idx": 2, "desc": "Integrated Webcam (video2)"},
+    {"name": "top", "path": "/dev/v4l/by-id/usb-Generic_USB_Camera3_200901010001-video-index0", "desc": "顶部视角 (USB Camera3)"},
+    {"name": "front", "path": "/dev/v4l/by-id/usb-170428-_Integrated_Webcam_HD-video-index0", "desc": "前部视角 (Integrated Webcam)"},
 ]
 
 SNAP_DIR = os.path.expanduser("~/camera_snapshots")
 
 
-def open_camera(idx):
-    cap = cv2.VideoCapture(idx, cv2.CAP_V4L2)
+def open_camera(path):
+    cap = cv2.VideoCapture(path, cv2.CAP_V4L2)
     if not cap.isOpened():
-        print(f"  ❌ video{idx}: 无法打开")
+        print(f"  ❌ {path}: 无法打开")
         return None
     # 尝试设置更高分辨率（若相机支持）
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
@@ -76,7 +77,7 @@ def main():
     caps = {}
     for cam in CAMERAS:
         print(f"打开 {cam['name']} ({cam['desc']}) ...")
-        cap = open_camera(cam["idx"])
+        cap = open_camera(cam["path"])
         if cap:
             caps[cam["name"]] = {"cap": cap, "info": cam}
         else:
