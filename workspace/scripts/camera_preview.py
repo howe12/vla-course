@@ -17,11 +17,12 @@ import time
 import cv2
 import numpy as np
 
-# 相机映射（稳定绑定：按 USB 序列号，拔插/重启不换）
-# 确认：左=top(顶部,外接USB Camera3 video0)，右=front(前部,集成Webcam video2)
+# 相机映射（用户确认的物理含义，2026-08-03）
+# top = 全局俯视（外接 USB Camera3, video0），front = 平视视角（集成 Webcam, video2）
+# left/right = 双臂相机（当前未接，LEO-Gemini 共 4 相机）
 CAMERAS = [
-    {"name": "top", "path": "/dev/v4l/by-id/usb-Generic_USB_Camera3_200901010001-video-index0", "desc": "顶部视角 (USB Camera3)"},
-    {"name": "front", "path": "/dev/v4l/by-id/usb-170428-_Integrated_Webcam_HD-video-index0", "desc": "前部视角 (Integrated Webcam)"},
+    {"name": "top", "path": "/dev/v4l/by-id/usb-Generic_USB_Camera3_200901010001-video-index0", "desc": "全局俯视 (USB Camera3)"},
+    {"name": "front", "path": "/dev/v4l/by-id/usb-170428-_Integrated_Webcam_HD-video-index0", "desc": "平视视角 (Integrated Webcam)"},
 ]
 
 SNAP_DIR = os.path.expanduser("~/camera_snapshots")

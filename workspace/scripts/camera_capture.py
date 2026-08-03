@@ -13,11 +13,16 @@ JPEG 编码后封装为 gRPC Image 消息。
 import cv2
 import numpy as np
 
-# 相机映射（video0=主相机, video2=副相机; video1/video3 是元数据节点）
+# 相机映射（用户确认的物理含义，2026-08-03）
+# top   = 全局俯视相机（外接 USB Camera3, video0）
+# front = 平视视角相机（集成 Webcam, video2）
+# left  = 左臂相机（当前未接，预留；LEO-Gemini 共 4 相机：2 全局 + 2 双臂）
 CAMERA_MAP = {
-    "top": "/dev/v4l/by-id/usb-Generic_USB_Camera3_200901010001-video-index0",   # 顶部视角（外接 USB Camera3）
-    "front": "/dev/v4l/by-id/usb-170428-_Integrated_Webcam_HD-video-index0",     # 前部视角（集成 Webcam）
+    "top": "/dev/v4l/by-id/usb-Generic_USB_Camera3_200901010001-video-index0",   # 全局俯视（外接 USB Camera3）
+    "front": "/dev/v4l/by-id/usb-170428-_Integrated_Webcam_HD-video-index0",     # 平视视角（集成 Webcam）
 }
+# 可用的额外相机（未连接或元数据节点，接入后需确认绑定）：
+#   left（左臂相机）、right（右臂相机）—— 当前未接入 /dev/v4l/by-id
 TARGET_SIZE = (256, 256)  # smolvla_libero 输入尺寸
 JPEG_QUALITY = 85
 
