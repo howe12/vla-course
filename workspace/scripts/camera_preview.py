@@ -137,7 +137,10 @@ def main():
 
     for c in caps.values():
         c["cap"].release()
-    cv2.destroyAllWindows()
+    try:
+        cv2.destroyAllWindows()
+    except cv2.error:
+        pass  # headless 环境（无 GTK）下忽略
 
 
 if __name__ == "__main__":
