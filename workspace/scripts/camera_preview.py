@@ -17,12 +17,14 @@ import time
 import cv2
 import numpy as np
 
-# 相机映射（用户确认的物理含义，2026-08-03）
-# top = 全局俯视（外接 USB Camera3, video0），front = 平视视角（集成 Webcam, video2）
-# left/right = 双臂相机（当前未接，LEO-Gemini 共 4 相机）
+# 相机映射（用户确认的物理含义，2026-08-04）
+# top=全局俯视(video0,USB Camera3) front=平视(video4) left=左臂(video2) right=右臂(video6)
+# ⚠️ 3 个 Microdia 序列号相同，by-id 冲突，必须用 by-path(USB端口)绑定
 CAMERAS = [
-    {"name": "top", "path": "/dev/v4l/by-id/usb-Generic_USB_Camera3_200901010001-video-index0", "desc": "全局俯视 (USB Camera3)"},
-    {"name": "front", "path": "/dev/v4l/by-id/usb-170428-_Integrated_Webcam_HD-video-index0", "desc": "平视视角 (Integrated Webcam)"},
+    {"name": "top", "path": "/dev/v4l/by-path/platform-3610000.usb-usb-0:1.1:1.0-video-index0", "desc": "全局俯视 (video0)"},
+    {"name": "front", "path": "/dev/v4l/by-path/platform-3610000.usb-usb-0:2.3:1.0-video-index0", "desc": "平视视角 (video4)"},
+    {"name": "left", "path": "/dev/v4l/by-path/platform-3610000.usb-usb-0:2.2.2:1.0-video-index0", "desc": "左臂相机 (video2)"},
+    {"name": "right", "path": "/dev/v4l/by-path/platform-3610000.usb-usb-0:2.4:1.0-video-index0", "desc": "右臂相机 (video6)"},
 ]
 
 SNAP_DIR = os.path.expanduser("~/camera_snapshots")
