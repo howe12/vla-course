@@ -17,14 +17,14 @@ import time
 import cv2
 import numpy as np
 
-# 相机映射（用户确认的物理含义，2026-08-04）
-# top=全局俯视(video0,USB Camera3) front=平视(video4) left=左臂(video2) right=右臂(video6)
+# 相机映射（用户确认：空间位置 + 物理含义，2026-08-04）
+# 左上=top(video0,USB3直连) 右上=front(video4) 右下=right(video6) 左下=外接Hub→left(video2)
 # ⚠️ 3 个 Microdia 序列号相同，by-id 冲突，必须用 by-path(USB端口)绑定
 CAMERAS = [
-    {"name": "top", "path": "/dev/v4l/by-path/platform-3610000.usb-usb-0:1.1:1.0-video-index0", "desc": "全局俯视 (video0)"},
-    {"name": "front", "path": "/dev/v4l/by-path/platform-3610000.usb-usb-0:2.3:1.0-video-index0", "desc": "平视视角 (video4)"},
-    {"name": "left", "path": "/dev/v4l/by-path/platform-3610000.usb-usb-0:2.2.2:1.0-video-index0", "desc": "左臂相机 (video2)"},
-    {"name": "right", "path": "/dev/v4l/by-path/platform-3610000.usb-usb-0:2.4:1.0-video-index0", "desc": "右臂相机 (video6)"},
+    {"name": "top", "path": "/dev/v4l/by-path/platform-3610000.usb-usb-0:1.1:1.0-video-index0", "desc": "左上·全局俯视 (video0)"},
+    {"name": "front", "path": "/dev/v4l/by-path/platform-3610000.usb-usb-0:2.3:1.0-video-index0", "desc": "右上·平视视角 (video4)"},
+    {"name": "right", "path": "/dev/v4l/by-path/platform-3610000.usb-usb-0:2.4:1.0-video-index0", "desc": "右下·右臂相机 (video6)"},
+    {"name": "left", "path": "/dev/v4l/by-path/platform-3610000.usb-usb-0:2.2.2:1.0-video-index0", "desc": "左下·经外接Hub·左臂 (video2)"},
 ]
 
 SNAP_DIR = os.path.expanduser("~/camera_snapshots")

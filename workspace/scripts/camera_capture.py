@@ -13,17 +13,17 @@ JPEG 编码后封装为 gRPC Image 消息。
 import cv2
 import numpy as np
 
-# 相机映射（用户确认的物理含义，2026-08-04）
-# top   = 全局俯视（外接 USB Camera3, video0）      by-path: usb-0:1.1
-# front = 平视视角（Microdia, video4）              by-path: usb-0:2.3
-# left  = 左臂相机（Microdia, video2）              by-path: usb-0:2.2.2
-# right = 右臂相机（Microdia, video6）              by-path: usb-0:2.4
-# ⚠️ 3 个 Microdia 序列号相同(170428-...)，by-id 冲突，必须用 by-path(USB端口)绑定
+# 相机映射（用户确认：空间位置 + 物理含义，2026-08-04）
+# 左上(主板口) = top   (video0, USB Camera3, USB3直连)  devpath: 1.1
+# 右上(主板口) = front (video4, Microdia, 主Hub)        devpath: 2.3
+# 右下(主板口) = right (video6, Microdia, 主Hub)        devpath: 2.4
+# 左下(主板口) = 外接Hub → left (video2, Microdia, 二级Hub) devpath: 2.2.2
+# ⚠️ 3 个 Microdia 序列号相同，by-id 冲突，必须用 by-path(USB端口)绑定
 CAMERA_MAP = {
-    "top": "/dev/v4l/by-path/platform-3610000.usb-usb-0:1.1:1.0-video-index0",    # 全局俯视（外接 USB Camera3）
-    "front": "/dev/v4l/by-path/platform-3610000.usb-usb-0:2.3:1.0-video-index0",  # 平视视角（Microdia）
-    "left": "/dev/v4l/by-path/platform-3610000.usb-usb-0:2.2.2:1.0-video-index0", # 左臂相机（Microdia）
-    "right": "/dev/v4l/by-path/platform-3610000.usb-usb-0:2.4:1.0-video-index0",  # 右臂相机（Microdia）
+    "top": "/dev/v4l/by-path/platform-3610000.usb-usb-0:1.1:1.0-video-index0",    # 左上·全局俯视（USB Camera3, USB3直连）
+    "front": "/dev/v4l/by-path/platform-3610000.usb-usb-0:2.3:1.0-video-index0",  # 右上·平视视角（Microdia, 主Hub Port3）
+    "right": "/dev/v4l/by-path/platform-3610000.usb-usb-0:2.4:1.0-video-index0",  # 右下·右臂相机（Microdia, 主Hub Port4）
+    "left": "/dev/v4l/by-path/platform-3610000.usb-usb-0:2.2.2:1.0-video-index0", # 左下·经外接Hub·左臂相机（Microdia, 二级Hub Port2）
 }
 TARGET_SIZE = (256, 256)  # smolvla_libero 输入尺寸
 JPEG_QUALITY = 85
