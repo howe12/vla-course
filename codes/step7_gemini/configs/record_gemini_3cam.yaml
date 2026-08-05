@@ -1,0 +1,45 @@
+# LEO-Gemini 三相机数据采集配置（top + right + left）
+# 用法: lerobot-record --config_path configs/record_gemini_3cam.yaml \
+#         --dataset.repo_id "sandiqwq/你的数据集" \
+#         --dataset.single_task "你的任务指令"
+# 相机、机器人、遥操作参数都已固化，只需覆盖 dataset 字段
+
+robot:
+  type: gemini_follower
+  left_arm_port: /dev/ttyACM_left_follower
+  right_arm_port: /dev/ttyACM_right_follower
+  cameras:
+    top:
+      type: opencv
+      index_or_path: /dev/v4l/by-path/platform-3610000.usb-usb-0:1.1:1.0-video-index0
+      width: 640
+      height: 480
+      fps: 30
+    right:
+      type: opencv
+      index_or_path: /dev/v4l/by-path/platform-3610000.usb-usb-0:2.4:1.0-video-index0
+      width: 640
+      height: 480
+      fps: 25
+      fourcc: MJPG
+    left:
+      type: opencv
+      index_or_path: /dev/v4l/by-path/platform-3610000.usb-usb-0:2.2.2:1.0-video-index0
+      width: 640
+      height: 480
+      fps: 25
+      fourcc: MJPG
+
+teleop:
+  type: gemini_leader
+  left_arm_port: /dev/ttyACM_left_leader
+  right_arm_port: /dev/ttyACM_right_leader
+
+dataset:
+  repo_id: sandiqwq/PENDING  # 每次采集用命令行覆盖
+  single_task: PENDING       # 每次采集用命令行覆盖
+  fps: 30
+  episode_time_s: 20
+  reset_time_s: 5
+  num_episodes: 50
+  root: /home/nxrobo/.cache/huggingface/lerobot
