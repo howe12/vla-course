@@ -14,8 +14,8 @@ VLA（Vision-Language-Action）是具身智能的核心技术——用一个统�
 |------|------|------|----------|--------|------|
 | **Step 1** | VLA 基础与架构 | 建立 VLA 理论地基——什么是 VLA、和 VLN/VLM/模仿学习的区别 | 无（纯理论） | 11 节 + 小结 + 4 思考题 | ✅ |
 | **Step 2** | 仿真环境搭建 | 搭建实验基础设施，学生第一次看到机械臂在仿真中动起来 | `sim_vla_arm.py`（MuJoCo Viewer 实时动画）<br>`run_libero_demo.py`（LIBERO 验证） | 6 节 + 模型文件 + 2 脚本 | ✅ |
-| **Step 3** | OpenVLA 实战 | 用现成 7B VLA 模型跑通完整推理管线——从像素到关节角 | `run_openvla_libero.py`（OpenVLA + LIBERO 零样本推理闭环） | 6 节 + 1 脚本 | ✅ |
-| **Step 4** | L40 云端训练环境 | 为后续训练备好算力——SSH、CUDA、文件传输、持久会话 | `gpu_test.py`（GPU 基准测试：TFLOPS + 显存分配） | 8 节 + 1 脚本 | ✅ |
+| **Step 3** | L40 云端训练环境 | 为后续训练备好算力——SSH、CUDA、文件传输、持久会话 | `gpu_test.py`（GPU 基准测试：TFLOPS + 显存分配） | 8 节 + 1 脚本 | ✅ |
+| **Step 4** | OpenVLA 实战 | 用现成 7B VLA 模型跑通完整推理管线——从像素到关节角 | `run_openvla_libero.py`（OpenVLA + LIBERO 零样本推理闭环） | 6 节 + 1 脚本 | ✅ |
 | **Step 5** | SmolVLA 轻量 VLA ⭐ | 从数据到模型到评估，完整走一遍 VLA 训练闭环 | `train.py`（完整训练含 --dry-run）<br>`eval_libero.py`（三套件评估） | 6 节 + 2 脚本 | ✅ |
 | **Step 6** | Pi0 扩散 VLA ⭐ | 理解 VLA 第二范式——扩散模型为什么比自回归更适合机器人动作 | `sim_pi0_arm.py`（Pi0/Mock 双模式驱动课程机械臂） | 6 节 + 1 脚本 | ✅ |
 | **Step 7** | Gemini 真机部署 | 仿真到真机的最后一公里——L40 模型部署到 Gemini 双臂机器人 | `deploy_model.py`（模型转换）<br>`run_gemini.py`（真机推理） | 6 节（计划） | ⏳ |
@@ -54,29 +54,30 @@ VLA（Vision-Language-Action）是具身智能的核心技术——用一个统�
 
 **配套文件：** `models/widowx_arm.xml` — 6-DOF 臂 + 桌面 + 红色目标方块 + 固定相机
 
-### Step 3 — OpenVLA 实战
+### Step 3 — L40 云端训练环境
 
 | 子节 | 内容 |
 |------|------|
-| 3.1 | OpenVLA 概述（7B, Stanford+UIUC, 与 RT-2 对比表） |
-| 3.2 | 架构详解（SigLIP→Projector→LLaMA→7×256 Action Head，ASCII 数据流图） |
-| 3.3 | 模型下载与加载（FP16/INT4/HF 镜像三种方案 + 硬件要求） |
-| 3.4 | 推理管线四步骤（图像预处理→Prompt 构建→自回归生成→Token 解码） |
-| 3.5 | 完整推理闭环 + run_openvla_libero.py 实验脚本 |
-| 3.6 | Token 编码揭秘（32000+dim×256+bucket 映射表） |
+| 3.1 | 为什么选 L40（四 GPU 对比：L40 44GB / A100 80GB / 3090 24GB / 4060 8GB） |
+| 3.2 | SSH 免密登录 + config 别名配置 |
+| 3.3 | L40 硬件概览 + PVC 持久化存储说明 |
+| 3.4 | uv + PyTorch CUDA 12.x 环境配置 + GPU 验证 |
+| 3.5 | scp / rsync 文件传输方案 |
+| 3.6 | tmux 后台训练（6 个常用快捷键） |
+| 3.7 | GPU 实时监控（nvidia-smi + gpustat） |
+| 3.8 | 动手实验：gpu_test.py GPU 基准测试 |
 
-### Step 4 — L40 云端训练环境
+
+### Step 4 — OpenVLA 实战
 
 | 子节 | 内容 |
 |------|------|
-| 4.1 | 为什么选 L40（四 GPU 对比：L40 44GB / A100 80GB / 3090 24GB / 4060 8GB） |
-| 4.2 | SSH 免密登录 + config 别名配置 |
-| 4.3 | L40 硬件概览 + PVC 持久化存储说明 |
-| 4.4 | uv + PyTorch CUDA 12.x 环境配置 + GPU 验证 |
-| 4.5 | scp / rsync 文件传输方案 |
-| 4.6 | tmux 后台训练（6 个常用快捷键） |
-| 4.7 | GPU 实时监控（nvidia-smi + gpustat） |
-| 4.8 | 动手实验：gpu_test.py GPU 基准测试 |
+| 4.1 | OpenVLA 概述（7B, Stanford+UIUC, 与 RT-2 对比表） |
+| 4.2 | 架构详解（SigLIP→Projector→LLaMA→7×256 Action Head，ASCII 数据流图） |
+| 4.3 | 模型下载与加载（FP16/INT4/HF 镜像三种方案 + 硬件要求） |
+| 4.4 | 推理管线四步骤（图像预处理→Prompt 构建→自回归生成→Token 解码） |
+| 4.5 | 完整推理闭环 + run_openvla_libero.py 实验脚本 |
+| 4.6 | Token 编码揭秘（32000+dim×256+bucket 映射表） |
 
 ### Step 5 — SmolVLA 轻量 VLA ⭐
 
