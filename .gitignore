@@ -1,2 +1,8 @@
 __pycache__/
-vla-course/
+*.pyc
+.venv/
+outputs/
+data/
+datasets/
+*.safetensors
+*.log
