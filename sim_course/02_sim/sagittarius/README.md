@@ -39,6 +39,18 @@ python sgr532_teleop.py
 - 键位：`q/a` J1± `w/s` J2± `e/d` J3± `r/f` J4± `t/g` J5± `y/h` J6±，`z` 夹爪张开 `c` 闭合，空格录制开/停，`k` 保存轨迹到 `sgr532_traj_<ts>.csv`（表头 `t,J1..J6,GL,GR`）
 - 控制版模型 `sgr532_motion.mjcf` 用 `integrator="implicit"` + kp30~40/kv5~6，位置伺服平滑跟位（稳态误差约 0.1rad，天然教学点）
 
+## 数据采集与回放核验（03-1）
+
+```bash
+# 回放验证采到的轨迹 -> sgr532_replay.gif + 各关节转角范围摘要
+/root/gpufree-data/vla-course/codes/.venv/bin/python sgr532_replay.py sgr532_traj_demo.csv
+# 画关节角-时间曲线 -> sgr532_traj_plot.png
+/root/gpufree-data/vla-course/codes/.venv/bin/python sgr532_plot.py sgr532_traj_demo.csv
+```
+
+- `sgr532_traj_demo.csv` 是一段 1200 步 / 4.8s 的示例轨迹（探出-低下-夹爪收拢-抬起-张开收回）
+- 采集入口用 `sgr532_teleop.py --terminal`（空格录制开/停，退出自动存 CSV）
+
 ## 模型结构（SGR532）
 
 - 6 自由度关节臂 `J1..J6`（revolute）+ 夹爪 `GL/GR`（slide）
