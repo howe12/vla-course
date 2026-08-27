@@ -57,6 +57,7 @@
 
     <!-- 相机: 顶视看桌面(采集用), 墙装跟随看夹爪 -->
     <camera name="cam_top" fovy="50" pos="0.32 -0.55 0.62" mode="targetbody" target="table_anchor"/>
+    <camera name="arm_cam" fovy="45" pos="0 0.78 0.75" mode="targetbody" target="link6"/>
 
     <!-- ========== 机械臂(同 sgr532.mjcf, 夹爪两片改为可碰撞以捏住物体) ========== -->
     <body name="base_link" pos="0 0 0">
@@ -112,11 +113,11 @@
 
     <!-- ========== 任务物体: 红杯 / 蓝杯(freejoint, 可被抓可移动) ========== -->
     <body name="cup_red" pos="0.22 -0.08 0.19">
-      <freejoint/>
+      <freejoint name="cup_red"/>
       <geom name="c_red" type="cylinder" size="0.025 0.040" pos="0 0 0" rgba="0.82 0.10 0.10 1" density="400" friction="0.9 0.3 0.03" contype="1" conaffinity="1"/>
     </body>
     <body name="cup_blue" pos="0.30 0.06 0.19">
-      <freejoint/>
+      <freejoint name="cup_blue"/>
       <geom name="c_blue" type="cylinder" size="0.025 0.040" pos="0 0 0" rgba="0.10 0.12 0.85 1" density="400" friction="0.9 0.3 0.03" contype="1" conaffinity="1"/>
     </body>
   </worldbody>

@@ -16,7 +16,7 @@ d = mujoco.MjData(m)
 
 rng = np.random.default_rng(0)
 
-def place_cup(name, xr=(0.17, 0.30), yr=(-0.10, 0.10)):
+def place_cup(name, xr, yr):
     ji = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, name)
     qr = m.jnt_qposadr[ji]
     x = rng.uniform(*xr); y = rng.uniform(*yr)
@@ -24,7 +24,9 @@ def place_cup(name, xr=(0.17, 0.30), yr=(-0.10, 0.10)):
     ang = rng.uniform(0, 6.28)
     d.qpos[qr+3:qr+7] = [0, 0, np.sin(ang/2), np.cos(ang/2)]
 
-place_cup('cup_red'); place_cup('cup_blue')
+# 红杯蓝杯分区摆放, 保证互不重叠、都在桌面(x∈[0.14,0.50], y∈[-0.16,0.16])
+place_cup('cup_red',  xr=(0.17, 0.24), yr=(-0.09, -0.02))
+place_cup('cup_blue', xr=(0.25, 0.30), yr=(0.02, 0.09))
 
 # 让 freejoint 物体在重力下落到桌面
 for _ in range(500):
