@@ -1,0 +1,123 @@
+<mujoco model="SGR532_pick_place">
+  <visual>
+    <headlight active="1" ambient="0.8 0.8 0.8" diffuse="0.6 0.6 0.6"/>
+    <global offwidth="480" offheight="480"/>
+  </visual>
+  <compiler meshdir="meshes" angle="degree" autolimits="false"/>
+
+  <default>
+    <geom type="mesh" contype="0" conaffinity="0" rgba="0.95 0.45 0.12 1"/>
+    <joint type="hinge" armature="0.001" damping="0.05" frictionloss="0.05"/>
+    <default class="gripper">
+      <joint type="slide" armature="0.001" damping="0.05" frictionloss="0.1"/>
+    </default>
+  </default>
+
+  <option timestep="0.004" integrator="implicit"/>
+
+  <asset>
+    <mesh name="base" file="sagittarius_base_link.obj"/>
+    <mesh name="l1"    file="link1.obj"/>
+    <mesh name="l2"    file="link2.obj"/>
+    <mesh name="l3"    file="link3.obj"/>
+    <mesh name="l4"    file="link4.obj"/>
+    <mesh name="l5"    file="link5.obj"/>
+    <mesh name="l6"    file="link6.obj"/>
+    <mesh name="gL"    file="link_gripper_left.obj"/>
+    <mesh name="gR"    file="link_gripper_right.obj"/>
+  </asset>
+
+  <worldbody>
+    <light dir="0 0 -1" diffuse="0.9 0.9 0.9" ambient="0.45 0.45 0.45" pos="0.5 0.5 1.5"/>
+
+    <!-- 白色仿真房间 (~1.6m) -->
+    <geom name="bg_floor" type="plane" size="0.80 0.80 0.02" rgba="0.97 0.97 0.97 1" pos="0 0 -0.02" contype="0" conaffinity="0"/>
+    <geom name="bg_wall_xp" type="box" size="0.04 0.82 0.75" rgba="0.97 0.97 0.97 1" pos="0.82 0 0.75" contype="0" conaffinity="0"/>
+    <geom name="bg_wall_xn" type="box" size="0.04 0.82 0.75" rgba="0.97 0.97 0.97 1" pos="-0.82 0 0.75" contype="0" conaffinity="0"/>
+    <geom name="bg_wall_yp" type="box" size="0.82 0.04 0.75" rgba="0.97 0.97 0.97 1" pos="0 0.82 0.75" contype="0" conaffinity="0"/>
+    <geom name="bg_wall_yn" type="box" size="0.82 0.04 0.75" rgba="0.97 0.97 0.97 1" pos="0 -0.82 0.75" contype="0" conaffinity="0"/>
+
+    <!-- ========== 桌面与目标区 ==========
+         桌面顶面 z=0.14, 范围 x[0.14,0.50], y[-0.16,0.16]（在臂前方可达区内）
+         桌面参与碰撞(contype=1) 接住 freejoint 物体; 臂本体默认不碰撞 -->
+    <body name="table" pos="0.32 0 0.12">
+      <geom name="table_top" type="box" size="0.18 0.16 0.02" pos="0 0 0" rgba="0.85 0.82 0.78 1" contype="1" conaffinity="1"/>
+      <geom name="table_leg1" type="box" size="0.02 0.02 0.14" pos="-0.15 0.13 -0.12" rgba="0.6 0.58 0.55 1" contype="0" conaffinity="0"/>
+      <geom name="table_leg2" type="box" size="0.02 0.02 0.14" pos="-0.15 -0.13 -0.12" rgba="0.6 0.58 0.55 1" contype="0" conaffinity="0"/>
+      <geom name="table_leg3" type="box" size="0.02 0.02 0.14" pos="0.15 0.13 -0.12" rgba="0.6 0.58 0.55 1" contype="0" conaffinity="0"/>
+      <geom name="table_leg4" type="box" size="0.02 0.02 0.14" pos="0.15 -0.13 -0.12" rgba="0.6 0.58 0.55 1" contype="0" conaffinity="0"/>
+      <!-- 目标托盘(固定记号, 放这一格): 不参与碰撞, 纯观感标记 -->
+      <geom name="target_tray" type="cylinder" size="0.055 0.006" pos="0.10 0 0.008" rgba="0.15 0.55 0.45 1" contype="0" conaffinity="0"/>
+      <site name="tray_site" pos="0.10 0 0.01" size="0.002"/>
+      <!-- 相机锚点(不可见), 顶视相机看向桌面中心 -->
+      <body name="table_anchor" pos="0 0 0.02">
+        <geom name="anchor_vis" type="sphere" size="0.005" rgba="0 0 0 0" contype="0" conaffinity="0"/>
+      </body>
+    </body>
+
+    <!-- 相机: 顶视看桌面(采集用), 墙装跟随看夹爪 -->
+    <camera name="cam_top" fovy="50" pos="0.32 -0.55 0.62" mode="targetbody" target="table_anchor"/>
+
+    <!-- ========== 机械臂(同 sgr532.mjcf, 夹爪两片改为可碰撞以捏住物体) ========== -->
+    <body name="base_link" pos="0 0 0">
+      <geom name="base" mesh="base"/>
+
+      <body name="link1" pos="0.045 0 0.07">
+        <joint name="J1" axis="0 0 -1"/>
+        <geom name="l1" mesh="l1"/>
+
+        <body name="link2" pos="0 -0.0001 0.055">
+          <joint name="J2" axis="0 -1 0"/>
+          <geom name="l2" mesh="l2"/>
+
+          <body name="link3" pos="0.033 -0.0001 0.179">
+            <joint name="J3" axis="0 -1 0"/>
+            <geom name="l3" mesh="l3"/>
+
+            <body name="link4" pos="0.0845 0 0">
+              <joint name="J4" axis="-1 0 0"/>
+              <geom name="l4" mesh="l4"/>
+
+              <body name="link5" pos="0.08435 0.00065 0">
+                <joint name="J5" axis="0 -1 0"/>
+                <geom name="l5" mesh="l5"/>
+
+                <body name="link6" pos="0.061387 0 0">
+                  <joint name="J6" axis="-1 0 0"/>
+                  <geom name="l6" mesh="l6"/>
+
+                  <body name="grasp" pos="0.0557 0 0">
+                    <geom name="fg_main" type="capsule" fromto="0 0 0 0.075 0 0" size="0.012" rgba="0.95 0.45 0.12 1"/>
+                    <geom name="fg_arm_l" type="capsule" fromto="0.075 0 0 0.0695 0.033 0" size="0.010" rgba="0.95 0.45 0.12 1"/>
+                    <geom name="fg_arm_r" type="capsule" fromto="0.075 0 0 0.0695 -0.033 0" size="0.010" rgba="0.95 0.45 0.12 1"/>
+
+                    <body name="gripper_left" pos="0.0695 0.033 0">
+                      <joint name="GL" class="gripper" axis="0 1 0" limited="true" range="-0.02 0.02"/>
+                      <geom name="gL" mesh="gL" contype="1" conaffinity="1"/>
+                    </body>
+
+                    <body name="gripper_right" pos="0.0695 -0.033 0">
+                      <joint name="GR" class="gripper" axis="0 -1 0" limited="true" range="-0.02 0.02"/>
+                      <geom name="gR" mesh="gR" contype="1" conaffinity="1"/>
+                    </body>
+
+                  </body>
+                </body>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+
+    <!-- ========== 任务物体: 红杯 / 蓝杯(freejoint, 可被抓可移动) ========== -->
+    <body name="cup_red" pos="0.22 -0.08 0.19">
+      <freejoint/>
+      <geom name="c_red" type="cylinder" size="0.025 0.040" pos="0 0 0" rgba="0.82 0.10 0.10 1" density="400" friction="0.9 0.3 0.03" contype="1" conaffinity="1"/>
+    </body>
+    <body name="cup_blue" pos="0.30 0.06 0.19">
+      <freejoint/>
+      <geom name="c_blue" type="cylinder" size="0.025 0.040" pos="0 0 0" rgba="0.10 0.12 0.85 1" density="400" friction="0.9 0.3 0.03" contype="1" conaffinity="1"/>
+    </body>
+  </worldbody>
+</mujoco>
