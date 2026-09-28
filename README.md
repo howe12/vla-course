@@ -19,6 +19,7 @@ uv run python step2_sim/sim_vla_arm.py
 |---|---|
 | [DM05_DEPLOYMENT_HANDOFF.md](docs/DM05_DEPLOYMENT_HANDOFF.md) | DM0.5 (OpenDM) 部署与实机对接交接文档 |
 | [DM05_REALROBOT_DEBUG_NOTES.md](docs/DM05_REALROBOT_DEBUG_NOTES.md) | DM0.5 实机调试记录：抓取失败根因（起始位姿 OOD）、整机归位修复与实测数据 |
+| [DM05_CONTROL_FLOW.md](docs/DM05_CONTROL_FLOW.md) | DM0.5 控制逻辑、时序（0.27Hz / 单轮 3.67s）与后续测试方案 |
 | [DM05_CLOUD_PATCH_BACKUP.md](docs/DM05_CLOUD_PATCH_BACKUP.md) | 云端 OpenDM 容器补丁备份清单 |
 | [SMOLVLA_DEPLOYMENT_NOTES.md](docs/SMOLVLA_DEPLOYMENT_NOTES.md) | SmolVLA 实机部署笔记 |
 | [USB_CAMERA_BANDWIDTH_CONCLUSION.md](docs/USB_CAMERA_BANDWIDTH_CONCLUSION.md) | 三路 USB 相机带宽结论 |
