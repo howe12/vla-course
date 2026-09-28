@@ -21,6 +21,7 @@
 import argparse
 import sys
 import os
+import json
 import time
 import logging
 import numpy as np
@@ -28,15 +29,144 @@ import cv2
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from brain_http_client import DM05HTTPClient, CHUNK_SIZE, ACTION_DIM
-from motor_executor import MotorExecutor, SafetyConfig, JOINT_NAMES, SAFE_LIMITS, LOOSE_LIMITS
+from motor_executor import (MotorExecutor, SafetyConfig, JOINT_NAMES,
+                            ENVELOPE_LIMITS, SAFE_LIMITS, LOOSE_LIMITS)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("dm05_live")
 
 # ── 常量 ──
 HTTP_ADDR = "http://127.0.0.1:7891"
-CAMERA_MAP = [(0, "front"), (4, "left"), (2, "right")]
-INSTRUCTION = "grab two objects into the middle box"
+#
+# 相机槽位绑定（2026-09-28 用对照实验 + 行为 A/B 定死）
+#
+# ⚠️ 最容易搞错的一点：**「物理上装在左臂的相机」并不等于「要放进 Left wrist 槽的相机」。**
+#    推理要复现的是【训练时的配对】，而本次数据集采集时两路腕部相机的标签是交叉的。
+#
+# 证据链：
+#   ① 物理归属（决定性实验）：归位后单独张开一侧夹爪，看哪路腕部相机画面剧变：
+#        · 只张 left_gripper  : video2 变化 23.50(17.62% 像素) / video4 3.83(0.33%)
+#        · 只张 right_gripper : video2  7.45( 4.61%)          / video4 22.17(16.94%)
+#      完美反相关 ⇒ 物理上 video2 装在 left_* 臂上，video4 装在 right_* 臂上。
+#   ② 采集命令（NUC ~/.bash_history，repo=mytest/grasp_two_obj_new）:
+#        left: index_or_path=2, right: index_or_path=4
+#      采集当天(Sep24 11:18)枚举顺序 4-1 → 3-2.2 → 3-3 ⇒ index2 = 端口 3-2.2。
+#   ③ 行为 A/B（最终裁决）：把 video4 放进 "Left wrist" 槽才出现训练一致的抓取：
+#        · left=video2(3-2.2)：L_grip 行程仅  6.3°，左臂各关节只到 44%~73%
+#        · left=video4(3-3)  ：L_grip 张开到 54.8（训练 49~58），60 轮内两臂各完成
+#          一次完整抓取循环（L_shldr −36.8 / R_shdr −44.1，夹爪 10~58），
+#          且严格「先左后右、一次只动一条臂」。
+#
+#   由 ①②③ 推出：**采集当天端口 3-2.2 上挂的是右臂的相机**（即数据集本身的
+#   left/right 标签与物理臂是交叉的）。模型学到的是这个交叉配对，因此部署时必须
+#   原样复现：把【右臂的相机(=今天的 video4)】送进 "Left wrist" 槽。
+#
+#   端口/编号对应（今天实测，换线后必须重新验证）：
+#     USB 4-1   : Realtek USB Camera3（唯一有序列号 200901010001）→ 物理 front
+#     USB 3-3   : Microdia → 物理【右】臂相机 → 但训练配对里它是 "left" → 送 slot 2
+#     USB 3-2.2 : Microdia → 物理【左】臂相机 → 但训练配对里它是 "right" → 送 slot 3
+#
+#   换线/换机后的确认方法（按可靠性排序）：
+#     1) 行为：跑 20 轮，正确配对会看到夹爪张开到 ~50 再闭合到 ~10
+#     2) 物理：归位后单独张开一侧夹爪，看哪路腕部画面剧变（自视特征）
+#     3) 临时覆盖：--camera-map "front:0,left:4,right:2"
+#
+#   📌 建议：下次采集数据集时，先用方法 2) 确认哪路是左臂相机，并让
+#      --robot.cameras 的 left/right 与物理臂一致，这样就不用再交叉配对了。
+CAMERA_USB_PATH = {"front": "4-1", "left": "3-3", "right": "3-2.2"}
+# 解析失败时的回退（对应今天的实际编号）
+CAMERA_MAP_FALLBACK = [(0, "front"), (4, "left"), (2, "right")]
+# 指令必须与训练数据 prompt 完全一致（大小写敏感）
+INSTRUCTION = "Grab two objects into the middle box"
+
+
+def _grab_fresh_frame(cap, last_ts, want_warn, name, timeout_s=1.0):
+    """抓一帧【新的】图像。
+
+    背景：挂在 USB 集线器上的 UVC 相机（如与随动板共用的 3-2 口）在电机流量大时
+    会被饿死 —— 驱动不投递新帧，cap.grab()/retrieve() 反复返回同一缓冲，
+    画面对模型就像"没更新"。这里用帧时间戳(CAP_PROP_POS_MSEC)+内容比对保证新帧：
+      - last_ts 沿用上一轮成功取帧的时间戳；POS_MSEC 前进 → 新帧
+      - 某些驱动 POS_MSEC 不可靠时，退化为"画面内容与上一轮不同"
+      - 最坏情况超时兜底（返回最近一帧，避免卡死），并打一次告警
+    返回 (frame, ts)；失败返回 (None, 0)。
+    """
+    t0 = time.time()
+    last_frame = None
+    last_ts_best = 0.0
+    while time.time() - t0 < timeout_s:
+        cap.grab()
+        ok, frame = cap.retrieve()
+        if not ok:
+            time.sleep(0.01)
+            continue
+        try:
+            ts = float(cap.get(cv2.CAP_PROP_POS_MSEC))
+        except Exception:
+            ts = -1.0
+        last_ts_best = ts if ts > 0 else last_ts_best
+        fresh = False
+        if last_ts is not None and ts > 0.0 and abs(ts - last_ts) >= 8.0:
+            fresh = True
+        if last_frame is not None and np.abs(frame.astype(np.float32) - last_frame.astype(np.float32)).mean() < 0.05:
+            # 内容与刚取到的上一帧相同 → 这是重复缓冲
+            time.sleep(0.015)
+            continue
+        if ts <= 0.0:
+            # 时间戳不可用：以"与上一轮画面不同"为准
+            fresh = True
+        if fresh:
+            return frame, ts
+        last_frame = frame
+        time.sleep(0.015)
+    # 超时：返回最近一帧兜底
+    if want_warn:
+        logger.warning(f"⚠️ 相机 {name} 在 {timeout_s:.1f}s 内未取到新帧(可能受USB带宽饥饿)，返回兜底帧")
+    if last_frame is not None:
+        return last_frame, last_ts_best
+    ok, frame = cap.read()
+    return (frame if ok else None), 0.0
+
+
+def resolve_camera_map():
+    """把 USB 物理路径解析成当前的 /dev/videoN 索引，返回 (index, name) 列表。
+
+    读取 /sys/class/video4linux/video*/device 的 realpath，取其中形如
+    ``3-2.2`` / ``4-1`` 的 USB 接口路径分量；并只用 index==0 的采集节点
+    （index==1 是 UVC 的 metadata 节点，不出图）。
+    """
+    import glob as _glob
+    import re as _re
+
+    pattern = _re.compile(r"^\d+-\d+(?:\.\d+)*$")
+    found = {}
+    for v in sorted(_glob.glob("/sys/class/video4linux/video*")):
+        try:
+            with open(os.path.join(v, "index")) as fh:
+                if fh.read().strip() != "0":        # 跳过 metadata 节点
+                    continue
+        except OSError:
+            continue
+        dev = os.path.realpath(os.path.join(v, "device"))
+        parts = [p for p in dev.split(os.sep) if pattern.match(p)]
+        if not parts:
+            continue
+        node = int(os.path.basename(v).replace("video", ""))
+        found[parts[-1]] = node          # 取最深的那个（如 3-2.2 而非 3-2）
+
+    if len(found) < 3:
+        logger.warning(f"相机按路径解析只找到 {found}，回退到编号映射 "
+                       f"{CAMERA_MAP_FALLBACK}")
+        return list(CAMERA_MAP_FALLBACK)
+
+    cmap = []
+    for name, path in CAMERA_USB_PATH.items():
+        if path not in found:
+            logger.warning(f"相机路径 {path}({name}) 未找到，回退到编号映射")
+            return list(CAMERA_MAP_FALLBACK)
+        cmap.append((found[path], name))
+    logger.info(f"相机按 USB 路径解析: {CAMERA_USB_PATH} → {cmap}")
+    return cmap
 STATE_DIM = 14
 # DM0.5 输出单位: 度; executor 内部用 0.1° 单位
 DEG_TO_0P1DEG = 10.0
@@ -177,11 +307,27 @@ class LiveMotorController:
         logger.info(f"🔧 关节归位: {desc}")
 
         seg = 0
+        best = None          # 历史最小「最大偏差」
+        stall = 0            # 连续未改善的段数
         while time.time() - t0 < timeout_s:
             cur = self.read_state_deg()
             todo = {i: t for i, t in idxs.items() if abs(t - cur[i]) > tol_deg}
             if not todo:
                 break
+            # 停滞检测：伺服有 ~1.5-2° 死区，个别关节永远进不了 tol，会导致
+            # 循环反复重发直到超时（实测 200 段 / 240s 只为一个 1.9° 的残余）。
+            # 这里跟踪整体最大偏差，若连续 12 段没有实质改善（<0.2°）就收工。
+            err = max(abs(t - cur[i]) for i, t in idxs.items())
+            if best is None or err < best - 0.2:
+                best = err if best is None else min(best, err)
+                stall = 0
+            else:
+                stall += 1
+                if stall >= 12:
+                    logger.info(
+                        f"归位收敛停滞（最好 {best:.1f}°，当前 {err:.1f}°），提前结束"
+                    )
+                    break
             # 关键：action 必须包含全部 14 个关节。未列入 todo 的关节填当前位置，
             # 让它们保持不动（不填则该关节无目标，会被驱动层当作 0 处理）。
             action = {f"{n}.pos": float(cur[i]) for i, n in enumerate(JOINT_NAMES)}
@@ -259,13 +405,29 @@ def main():
     ap.add_argument("--flush-camera", action="store_true",
                     help="开相机后先排空缓冲区，取真正最新帧（默认关闭以保持原有行为）")
     ap.add_argument("--loose-limits", action="store_true",
-                    help="使用更宽的机械安全限位（默认用训练数据范围 SAFE_LIMITS）")
+                    help="使用更宽的机械安全限位（不推荐）")
+    ap.add_argument("--limits", choices=["envelope", "safe", "loose"], default="envelope",
+                    help="关节限位表: envelope=训练数据实测包络(默认,最贴合策略); "
+                         "safe=包络+约4°余量; loose=机械边界")
+    ap.add_argument("--camera-map", default=None,
+                    help='手动覆盖相机映射，格式 "front:0,left:4,right:2"；'
+                         '不指定则按 USB 物理路径自动解析（推荐）')
+    ap.add_argument("--dump-dir", default=None,
+                    help="把每轮实际送给模型的三张图、完整 chunk、state 与限速前后的"
+                         "目标序列落盘，用于离线复盘（强烈建议实机测试时开启）")
     ap.add_argument("--max-speed-warn", type=float, default=25.0,
                     help="峰值速度告警阈值(度/秒)。理论上限 = max_joint_delta/10/step_delay")
     ap.add_argument("--max-delta0-warn", type=float, default=15.0,
                     help="异常轮次保护阈值：chunk[0] 与当前 state 的最大偏差超过该值"
                          "(度)时判定观测异常，跳过本轮执行")
     args = ap.parse_args()
+
+    # ── 落盘目录 ──
+    dump_dir = None
+    if args.dump_dir:
+        dump_dir = os.path.join(args.dump_dir, time.strftime("%Y%m%d_%H%M%S"))
+        os.makedirs(dump_dir, exist_ok=True)
+        logger.info(f"📁 复盘落盘目录: {dump_dir}")
 
     # ── 安全确认 ──
     if args.live:
@@ -297,10 +459,11 @@ def main():
     logger.info(f"DM0.5 推理服务连接 OK: {args.addr}")
 
     # ── 安全执行器 ──
-    limits = LOOSE_LIMITS if args.loose_limits else SAFE_LIMITS
-    logger.info(
-        "关节限位模式: " + ("LOOSE(机械边界)" if args.loose_limits else "SAFE(训练范围)")
-    )
+    if args.loose_limits:
+        args.limits = "loose"
+    limits = {"envelope": ENVELOPE_LIMITS, "safe": SAFE_LIMITS,
+              "loose": LOOSE_LIMITS}[args.limits]
+    logger.info(f"关节限位模式: {args.limits.upper()}")
     executor = MotorExecutor(SafetyConfig(
         dry_run=not args.live,
         max_joint_delta=args.max_joint_delta,
@@ -333,9 +496,17 @@ def main():
     else:
         init_state_deg = [0.0] * STATE_DIM
 
-    # ── 开相机 ──
+    # ── 开相机（按 USB 物理路径解析编号，避免枚举顺序漂移）──
+    if args.camera_map:
+        camera_map = []
+        for item in args.camera_map.split(","):
+            k, v = item.split(":")
+            camera_map.append((int(v), k.strip()))
+        logger.warning(f"⚠️ 使用手动覆盖的相机映射: {camera_map}")
+    else:
+        camera_map = resolve_camera_map()
     caps = {}
-    for idx, name in CAMERA_MAP:
+    for idx, name in camera_map:
         cap = cv2.VideoCapture(idx, cv2.CAP_V4L2)
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
@@ -350,6 +521,9 @@ def main():
     if len(caps) < 3:
         logger.warning(f"仅 {len(caps)}/3 路相机可用，缺失的将使用空图")
 
+    # 「新鲜帧」状态：各相机上一轮成功帧的时间戳（用于确认下一轮确实取到新帧）
+    _last_fresh_ts = {name: None for name in caps}
+
     # 预热：夹爪归位(~10s)/开相机期间驱动缓冲里可能是旧帧，先丢弃若干帧
     # （实测不预热时首轮 delta0 max 可达 14.4°，属瞬态）
     for _name, _cap in caps.items():
@@ -361,22 +535,17 @@ def main():
         for round_i in range(args.rounds):
             logger.info(f"\n{'='*50}\n=== Round {round_i+1}/{args.rounds} ===")
 
-            # 1. 采集图像
+            # 1. 采集图像（带「新鲜帧」强制：USB 带宽饥饿时驱动会重复返回同一缓冲，
+            #    造成腕部相机静态帧 —— 用时间戳+内容双重确认，确保喂给模型的是新帧）
             t_cam = time.time()
             images_jpeg = {}
             for name, cap in caps.items():
-                if args.flush_camera:
-                    # 排空驱动缓冲，确保取到真正最新帧
-                    for _ in range(4):
-                        cap.grab()
-                    ok, frame = cap.retrieve()
-                else:
-                    for _ in range(2):
-                        cap.read()  # warmup
-                    ok, frame = cap.read()
-                if not ok:
-                    logger.warning(f"相机 {name} 采集失败")
+                frame, ts = _grab_fresh_frame(cap, _last_fresh_ts.get(name), True, name)
+                if frame is None:
+                    logger.warning(f"相机 {name} 采集失败(超时1000ms)")
                     continue
+                _last_fresh_ts[name] = ts
+                _last_fresh_ts[name] = ts
                 ok2, buf = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
                 images_jpeg[name] = buf.tobytes()
             cam_ms = (time.time() - t_cam) * 1000
@@ -425,6 +594,8 @@ def main():
                 continue
 
             # 4. 逐步执行 (度 → 0.1° → MotorExecutor 安全校验)
+            if dump_dir is not None:
+                executor.trace = []
             t_exec_start = time.time()
             for step in range(actions.shape[0]):
                 step_actions_0p1 = [v * DEG_TO_0P1DEG for v in actions[step].tolist()]
@@ -434,6 +605,34 @@ def main():
                     action_dim=ACTION_DIM,
                 )
                 time.sleep(args.step_delay)
+
+            # 落盘：模型实际看到的三张图 + 完整 chunk + state + 限速前后目标
+            if dump_dir is not None:
+                try:
+                    tag = f"r{round_i+1:03d}"
+                    for nm, jb in images_jpeg.items():
+                        with open(os.path.join(dump_dir, f"{tag}_{nm}.jpg"), "wb") as fh:
+                            fh.write(jb)
+                    np.save(os.path.join(dump_dir, f"{tag}_chunk.npy"), actions)
+                    with open(os.path.join(dump_dir, f"{tag}_trace.json"), "w") as fh:
+                        json.dump({
+                            "round": round_i + 1,
+                            "state_deg": [float(v) for v in current_state_deg],
+                            "chunk": actions.tolist(),
+                            "raw_targets_0p1deg": [step["raw"] for step in executor.trace],
+                            "safe_targets_0p1deg": [step["safe"] for step in executor.trace],
+                            "prev_positions_0p1deg": [step["prev"] for step in executor.trace],
+                            "cam_ms": round(cam_ms, 1),
+                            "infer_total_ms": round(total_ms, 1),
+                            "server_latency_ms": round(float(server_latency), 1),
+                            "max_joint_delta": args.max_joint_delta,
+                            "step_delay": args.step_delay,
+                        }, fh)
+                    logger.info(f"[dump] {tag} 已落盘 (图 3 张 + chunk + trace)")
+                except Exception as e:  # 落盘失败不应影响控制
+                    logger.warning(f"[dump] 落盘失败: {e}")
+                finally:
+                    executor.trace = None
 
             # 执行后统计实际运动速度与行程（安全监控）
             if live is not None:

@@ -19,8 +19,9 @@ from motor_executor import MotorExecutor, SafetyConfig, JOINT_NAMES
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("dm05_dryrun")
 
-CAMERA_MAP = [(0, "front"), (4, "left"), (2, "right")]
-INSTRUCTION = "grab two objects into the middle box"
+# 与采集命令一致: left=2, right=4（详见 motor_executor_live_dm05.py 中的说明）
+CAMERA_MAP = [(0, "front"), (2, "left"), (4, "right")]
+INSTRUCTION = "Grab two objects into the middle box"
 STATE_DIM = 14
 DEG_TO_0P1DEG = 10.0
 

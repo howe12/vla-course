@@ -24,8 +24,11 @@ except ImportError:
 
 logger = logging.getLogger("dm05_http")
 
+# front 相机是否裁剪下半幅再拉伸（训练数据未裁剪，故默认 False）
+CROP_FRONT = False
+
 DEFAULT_ADDR = "http://127.0.0.1:7891"
-DEFAULT_INSTRUCTION = "grab two objects into the middle box"
+DEFAULT_INSTRUCTION = "Grab two objects into the middle box"   # 与训练数据 prompt 完全一致（大小写敏感）
 CHUNK_SIZE = 50
 ACTION_DIM = 14
 
@@ -68,7 +71,15 @@ class DM05HTTPClient:
             actions: np.ndarray shape (50, 14)，单位: 度
             latency_ms: 云端推理延迟 (ms)
         """
-        # 编码图片为 base64（front 相机裁剪下半部分以匹配训练视角）
+        # 编码图片为 base64
+        #
+        # ⚠️ 2026-09-28 修正：原先对 front 相机做「裁下半幅 + 拉伸回 640x480」，
+        # 注释写的是「以匹配训练视角」，但核对数据集转换脚本
+        # (convert_lerobot_to_dm05.py) 后确认：训练用的 front 图是
+        # **原样整幅 640x480，没有任何裁剪**。实机原始整幅帧与训练首帧的
+        # 行亮度剖面相关系数 0.988，属同一视角。
+        # 因此推理时裁剪会造成训练/推理视角不一致，已默认关闭。
+        # 如确需裁剪（例如换用另一套相机/机位），把 CROP_FRONT 置 True。
         images_b64 = {}
         cam_order = [("front", "1"), ("left", "2"), ("right", "3")]
         # 生成一个灰色占位 JPEG（避免空字符串被服务端拒绝）
@@ -76,8 +87,8 @@ class DM05HTTPClient:
         for cam_name, img_key in cam_order:
             if cam_name in images_jpeg:
                 jpeg_data = images_jpeg[cam_name]
-                # Front 相机：裁剪下半部分并 resize 回 480x640
-                if cam_name == "front" and HAS_CV2:
+                # Front 相机裁剪开关（默认关闭，见上方说明）
+                if cam_name == "front" and CROP_FRONT and HAS_CV2:
                     arr = np.frombuffer(jpeg_data, dtype=np.uint8)
                     frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
                     if frame is not None:

@@ -55,6 +55,34 @@ SAFE_LIMITS = {
     "gripper": (-840, 705),
 }
 
+# ── ENVELOPE_LIMITS: 训练数据的逐关节实测范围（左右臂分开，无额外余量）──
+#   为什么需要它（2026-09-28 实机发现）：
+#     SAFE_LIMITS 是「包络 + 约 4° 余量」，允许模型指令略微超出训练分布。实测
+#     60 轮里右臂出现 R_shdr = -44.1°，而训练 30 集的下限是 -39.0° —— 肩部
+#     多转了 5°，且同一时刻 R_elbow 只有 8.2°（训练同深度时应为 +25~+38°）。
+#     「肩过深 + 肘滞后」使夹爪比示范姿态低 5~8cm，是抓取失败的直接原因。
+#     把限位收紧到训练包络本身，即可阻止这类外推指令。
+#   来源: v2 数据集(leo_gemini_new) 25843 帧逐关节 min/max（左右臂分开统计）。
+#   注意: 夹爪保留 <0 区间（闭合），否则无法抓取。
+ENVELOPE_LIMITS = {
+    # 左臂
+    "left_waist":        (-114, 601),
+    "left_shoulder":     (-455, 891),
+    "left_elbow":        (-901, 498),
+    "left_forearm_roll": (-406, 32),
+    "left_wrist_flex":   (-894, 154),
+    "left_wrist_roll":   (-47, 604),
+    "left_gripper":      (-798, 638),
+    # 右臂
+    "right_waist":        (-540, 7),
+    "right_shoulder":     (-390, 1042),
+    "right_elbow":        (-881, 405),
+    "right_forearm_roll": (-163, 150),
+    "right_wrist_flex":   (-875, 77),
+    "right_wrist_roll":   (-393, 544),
+    "right_gripper":      (-802, 647),
+}
+
 # ── LOOSE_LIMITS: 更宽的机械安全边界（--loose-limits 启用）──
 #   仅在确认环境安全、需要更大活动空间时使用
 LOOSE_LIMITS = {
@@ -67,8 +95,8 @@ LOOSE_LIMITS = {
     "gripper": (-900, 800),
 }
 
-# 默认使用 SAFE_LIMITS
-DEFAULT_LIMITS = SAFE_LIMITS
+# 默认使用 ENVELOPE_LIMITS（严格贴合训练分布，最不容易出现外推导致的位置偏差）
+DEFAULT_LIMITS = ENVELOPE_LIMITS
 
 
 @dataclass
@@ -91,6 +119,9 @@ class MotorExecutor:
         self.last_action_time = time.time()
         self.action_count = 0
         self._robot = None  # LIVE 模式下的 lerobot Robot 实例
+        # 诊断用：设为 list 时，_apply_safety 会把每步的「原始目标 / 截断后目标」
+        # 记录下来，便于离线分析限速到底吃掉了多少行程。
+        self.trace: list | None = None
 
         mode = "DRY_RUN（只记录）" if self.config.dry_run else "⚠️ LIVE（真实驱动）"
         logger.info(f"MotorExecutor 初始化，模式: {mode}")
@@ -174,6 +205,12 @@ class MotorExecutor:
                 target = self.last_positions[name] + direction * self.config.max_joint_delta
 
             safe[name] = target
+        if self.trace is not None:
+            self.trace.append({
+                "raw": {k: float(v) for k, v in targets.items()},
+                "safe": {k: float(v) for k, v in safe.items()},
+                "prev": {k: float(v) for k, v in self.last_positions.items()},
+            })
         return safe
 
     def _log_dry_run(self, targets: dict[str, float]):
